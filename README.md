@@ -12,6 +12,14 @@ The code uses an input line-fitting parameter list to specify the fitting range 
 
 Use this code at your own risk, as we are not responsible for any errors. But if you report bugs, it will be greatly appreciated.
 
+
+### Hall Research Group Fork
+
+20250513:
+- Incorporated LMS changes to PyQSOFit.py.
+- Added HostDecompV2.0.0.py and PyQSOFitV2.1.6.py purely for reference.
+
+
 ### Install
 
 Bleeding edge:
