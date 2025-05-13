@@ -16,21 +16,10 @@ Use this code at your own risk, as we are not responsible for any errors. But if
 ### Hall Research Group Fork
 
 20250513:
-- Incorporated LMS changes to PyQSOFit.py.
+- Incorporated LMS (Lucas M. Seaton) changes to PyQSOFit.py.
+- Added LMS_pyQSO_call.py to show how Lucas calls PyQSOFit.
 - Added HostDecompV2.0.0.py and PyQSOFitV2.1.6.py purely for reference.
 
-
-### Install
-
-Bleeding edge:
-
-``git clone https://github.com/legolason/PyQSOFit``<br>
-``cd PyQSOFit``<br>
-``python -m pip install .``<br>
-
-Pip install (stable version):
-
-``pip install pyqsofit`` (coming soon)
 
 ### Cite
 
