@@ -9,8 +9,10 @@
 # Description：Use the PCA data to decompose the spectra with a priori
 """
 import os, glob
+import warnings
+
 from astropy.io import fits
-import pandas as pd
+from numpy import genfromtxt
 import numpy as np
 from lmfit import Minimizer, Parameters
 from scipy.interpolate import interp1d
@@ -88,9 +90,7 @@ class host_template():
             self._read_PCA(template_path)
         elif template_type == 'BC03':
             self._read_BC03(template_path)
-        elif template_type == 'indo19':
-            self._read_INDO(template_path)
-        elif template_type == 'indo50':
+        elif template_type == 'indo':
             self._read_INDO(template_path)
         elif template_type == 'M09_17':
             self._read_M09(template_path)
@@ -155,6 +155,7 @@ class host_template():
         return wave_gal, flux_gal
 
     def _read_M09(self, template_path):
+        import pandas as pd
         flux_temp = np.array([])
         wave_gal = np.array([])
         cc = 0
@@ -173,6 +174,7 @@ class host_template():
         return wave_gal, flux_gal
 
     def _read_MILES(self, template_path):
+        import pandas as pd
         flux_temp = np.array([])
         wave_gal = np.array([])
         cc = 0
@@ -213,7 +215,7 @@ class host_template():
 
             spec_R = c0 * (10 ** delta_ll - 1)
             if spec_R < sigma:
-                xx_lim = np.abs(shift) + sigma * 3
+                xx_lim = np.log10((np.abs(shift) + sigma * 3)/c0+1)
                 loglam_shift = np.log10(shift / c0 + 1)
                 loglam_sigma = np.log10(sigma / c0 + 1)
                 conv_xx = np.arange(-xx_lim, xx_lim, delta_ll)
@@ -223,7 +225,10 @@ class host_template():
 
                 flux_interp = interp1d(wave_in, flux_in, bounds_error=False, fill_value=0)(
                     10 ** loglam)
-                flux_broaden = np.convolve(flux_interp, conv_core, mode='same')
+                if np.ndim(flux_in) == 1:
+                    flux_broaden = np.convolve(flux_interp, conv_core, mode='same')
+                else:
+                    flux_broaden = np.array([np.convolve(flux_i, conv_core, mode='same') for flux_i in flux_interp])
                 wave_in = 10 ** loglam
                 flux_in = flux_broaden
             else:
@@ -276,6 +281,7 @@ class Linear_decomp():
         self.err = err
         self.n_gal = n_gal
         self.n_qso = n_qso
+        self.assertion = True
 
         path2prior = os.path.join(path, 'pca/prior')
         path2qso = os.path.join(path, 'pca/Yip_pca_templates')
@@ -293,25 +299,30 @@ class Linear_decomp():
         wave_min = np.max([np.min(wave), np.min(self.qso_tmp.wave_qso), np.min(self.gal_tmp.wave_gal)])
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
-        self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
-
-        if na_mask == True:
-            self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+        if np.sum(ind_data)/len(ind_data) < 0.5:
+            self.assertion = False
+            warnings.warn('The templates used for decomposition can only cover less than 50% of the original data. '
+                             'Please check the settings and consider close the decomposition function.')
         else:
-            self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
+            self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
-        self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
-        self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
+            if na_mask == True:
+                self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+            else:
+                self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
 
-        self.n_qso = self.qso_tmp.n_template
-        self.n_gal = self.gal_tmp.n_template
+            self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
+            self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
 
-        if self.n_qso != n_qso:
-            raise ValueError(f'The number of qso template is not correct. '
-                             f'You ask for {n_qso} template, while the maximum number of qso template is {self.n_qso}')
-        if self.n_gal != n_gal:
-            raise ValueError(f'The number of gal template is not correct. '
-                             f'You ask for {n_gal} template, while the maximum number of gal template is {self.n_gal}')
+            self.n_qso = self.qso_tmp.n_template
+            self.n_gal = self.gal_tmp.n_template
+
+            if self.n_qso != n_qso:
+                raise ValueError(f'The number of qso template is not correct. '
+                                 f'You ask for {n_qso} template, while the maximum number of qso template is {self.n_qso}')
+            if self.n_gal != n_gal:
+                raise ValueError(f'The number of gal template is not correct. '
+                                 f'You ask for {n_gal} template, while the maximum number of gal template is {self.n_gal}')
 
     def auto_decomp(self):
         flux_temp = np.vstack((self.qso_datacube, self.gal_datacube)).T
@@ -378,6 +389,13 @@ class Prior_decomp():
         QSO_prior_name = f'QSO_pp_prior_{qso_type}.csv'
         self.fh_ini_list = fh_ini_list
 
+        self.wave = wave
+        self.flux = flux
+        self.err = err
+        self.n_gal = n_gal
+        self.n_qso = n_qso
+        self.assertion = True
+
         self.qso_tmp = QSO_PCA(path2qso, n_qso, template_name=qso_type)
         self.gal_tmp = host_template(n_template=n_gal, template_path=path2host, template_type=host_type)
 
@@ -385,22 +403,27 @@ class Prior_decomp():
         wave_min = np.max([np.min(wave), np.min(self.qso_tmp.wave_qso), np.min(self.gal_tmp.wave_gal)])
         wave_max = np.min([np.max(wave), np.max(self.qso_tmp.wave_qso), np.max(self.gal_tmp.wave_gal)])
         ind_data = np.where((wave > wave_min) & (wave < wave_max), True, False)
-        self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
-
-        if na_mask == True:
-            self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+        if np.sum(ind_data)/len(ind_data) < 0.5:
+            warnings.warn('The templates used for decomposition can only cover less than 50% of the original data. '
+                             'Please check the settings and consider close the decomposition function.')
+            self.assertion = False
         else:
-            self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
+            self.wave, self.flux, self.err = wave[ind_data], flux[ind_data], err[ind_data]
 
-        self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
-        self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
-        self.n_qso = self.qso_tmp.n_template
-        self.n_gal = self.gal_tmp.n_template
+            if na_mask == True:
+                self.wave_fit, self.flux_fit, self.err_fit = _na_mask(self.wave, self.flux, self.err)
+            else:
+                self.wave_fit, self.flux_fit, self.err_fit = self.wave, self.flux, self.err
 
-        self.qso_prior = np.array([[0, 1]] * self.n_qso)
-        self.gal_prior = np.array([[0, 1]] * self.n_gal)
+            self.qso_datacube = self.qso_tmp.interp_data(self.wave_fit)
+            self.gal_datacube = self.gal_tmp.interp_data(self.wave_fit)
+            self.n_qso = self.qso_tmp.n_template
+            self.n_gal = self.gal_tmp.n_template
 
-        self.read_prior(path2prior, QSO_prior_name, GAL_prior_name)
+            self.qso_prior = np.array([[0, 1]] * self.n_qso)
+            self.gal_prior = np.array([[0, 1]] * self.n_gal)
+
+            self.read_prior(path2prior, QSO_prior_name, GAL_prior_name)
 
     def read_prior(self, prior_loc, QSO_prior_name='QSO_pp_prior.csv', GAL_prior_name='GAL_pp_prior.csv'):
         self.qso_prior = self._read_prior(os.path.join(prior_loc, QSO_prior_name), self.n_qso)
@@ -478,14 +501,25 @@ class Prior_decomp():
 
         return par_list, rchi2
 
+    # def _residuals(self, param: Parameters, yval, err, reg_factor):
+    #     chi_array = self._get_diff(param, yval, err)
+    #     penalty = reg_factor * np.sqrt(self._get_prior_diff(param) * np.sum(chi_array ** 2) / len(yval))
+    #     # print(np.mean(chi_array + penalty))
+    #     return chi_array + penalty
+
     def _residuals(self, param: Parameters, yval, err, reg_factor):
-        chi_array = self._get_diff(param, yval, err)
-        penalty = reg_factor * np.sqrt(self._get_prior_diff(param) * np.sum(chi_array ** 2) / len(yval))
-        # print(np.mean(chi_array + penalty))
-        return chi_array + penalty
+        r0 = self._get_diff(param, yval, err)
+        lam2 = reg_factor**2
+        nn = len(r0)
+        D2 = self._get_prior_diff(param)
+        sum_r0 = np.sum(r0)
+        sum_r0_2 = np.sum(r0 ** 2)
+        sig = np.sqrt(sum_r0**2 + nn*sum_r0_2*D2*lam2)-sum_r0
+        return r0 + sig/nn
 
     def _read_prior(self, path2prior, n_pp):
-        prior = np.array(pd.read_csv(path2prior))
+        # prior = np.array(pd.read_csv(path2prior))
+        prior = genfromtxt(path2prior, delimiter=',', skip_header=1)
         return prior[:n_pp]
 
     def qso_model(self, param: list = None, wave=None):
@@ -614,7 +648,8 @@ def ppxf_kinematics(wave, flux, err, path, fit_range=(3700, 8300), MC_iter=0):
             pp_mc = ppxf(templates, galaxy + np.random.normal(0, noise), noise, velscale, start,
                          goodpixels=goodpixels, plot=False, moments=2, trig=1,
                          degree=20, lam=lam_gal, lam_temp=np.exp(ln_lam_temp), quiet=True)
-            pp_list[n_iter] = pp_mc.sol[:1]
+            # pp_list[n_iter] = pp_mc.sol[:1]
+            pp_list[n_iter] = np.array([pp_mc.sol[0], pp_mc.sol[1]])
 
         return np.array([pp_orig.sol[1], np.std(pp_list[:, 1]), pp_orig.sol[0], np.std(pp_list[:, 0]),
                          pp_orig.chi2]), ppxf_mask, ppxf_model

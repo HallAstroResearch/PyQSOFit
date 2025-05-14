@@ -574,7 +574,7 @@ class QSOFit():
         if self.fiberid is None:
             self.fiberid = 0
 
-        # set default path for figure and fits
+        # set default filename (NOT path) for figure and fits
         if save_fits_name == None:
             if self.sdss_name == '':
                 save_fits_name = 'result'
@@ -2003,7 +2003,7 @@ class QSOFit():
 
         return self.line_result, self.line_result_name
 
-    def line_prop_from_name(self, line_name, line_type='broad', ln_sigma_br=0.0017):
+    def line_prop_from_name(self, line_name, line_type='broad', sample_index=-1, ln_sigma_br=0.0017):
         """
         line_name: line name e.g., 'Ha_br'
         """
@@ -2643,14 +2643,13 @@ class QSOFit():
         if show_title == True:
             if self.ra == -999 or self.dec == -999:
                 ax.set_title(f'{self.sdss_name}   z = {np.round(float(self.z), 4)}', fontsize=20)
+            if self.name=='J2318':
+                    ax.set_title(f'J2318    MJD = {np.round(self.mjd)}   z = {np.round(float(self.z), 4)}', fontsize=20)
             else:
-                # ra1 = np.round(self.ra, 4)
-                # dec1 = np.round(self.dec, 4)
-                # z1 = np.round(float(self.z), 4)
-                # ax.set_title(f'(ra,dec) = ({ra1},{dec1})   {self.sdss_name}   z = {z1}', fontsize=20)
-                ax.set_title(
-                    f'J2318    MJD = {np.round(self.mjd)}   z = {np.round(float(self.z), 4)}',
-                    fontsize=20)
+                ra1 = np.round(self.ra, 4)
+                dec1 = np.round(self.dec, 4)
+                z1 = np.round(float(self.z), 4)
+                ax.set_title(f'(ra,dec) = ({ra1},{dec1})   {self.sdss_name}   z = {z1}', fontsize=20)
 
         # Host decomposition
         if self.decompose_host == True and self.decomposed == True:
@@ -2735,10 +2734,8 @@ class QSOFit():
                       self.Fe_flux_balmer(self.wave, pp[3:6]) + \
                       self.F_poly_conti(self.wave, pp[11:]) + \
                       self.Balmer_conti(self.wave, pp[8:11])
-        Folder = '/Users/zulken/Desktop/PhD/Coding/InitialPlotting/OUTPUT/J2318/'
-        Folder = save_fig_path
         #### Record ASCII of continuum fitting model
-        OutFile = open(Folder+'J2318_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat','w')
+        OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
         OutFile.write('# wave   flux   error\n')
         # for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
         #     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
@@ -2749,24 +2746,31 @@ class QSOFit():
             ### FeII component: f_conti_model_eval
 
         OutFile.close()
-        print('ASCII of continuum saved to: .../PyQSO_spectra/J2318_'
-              +str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        print('ASCII of continuum saved to:')
+        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
         #### Record Parameters used for continuum fitting
-        ParamFile = open(Folder+'J2318_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt','w')
+        ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
         ParamFile.write(str(pp[0])+'  '+str(pp[1])+'  '+str(pp[2])+'  '+
                         str(pp[3])+'  '+str(pp[4])+'  '+str(pp[5])+'  '+
                         str(pp[6])+'  '+str(pp[7])+'  '+str(pp[8])+'  '+
                         str(pp[9])+'  '+str(pp[10])+'  '+str(pp[11])+'  '+
                         str(pp[12])+'  '+str(pp[13]))
         ParamFile.close()
+        print('Parameters used for continuum fitting saved to:')
+        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
+        
         #### Record ASCII of reduced spectrum
         xRAW = self.wave_prereduced
         yRAW = self.flux_prereduced
-        RAWfile = open(Folder+'J2318_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat','w')
+        zRAW = self.err_prereduced
+        RAWfile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat'),'w')
         RAWfile.write('# wave   flux   error\n')
         for i,wav in enumerate(xRAW):
-            RAWfile.write(str(wav)+'  '+str(yRAW[i])+'  '+str(self.err[i])+'\n')
+            RAWfile.write(str(xRAW[i])+'  '+str(yRAW[i])+'  '+str(zRAW[i])+'\n')
         RAWfile.close()
+        print('QSOFit-reduced spectrum saved to:')
+        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
+        
         """
         Continuum components described by 14 parameters
          pp[0]:     norm_factor for the MgII Fe_template
