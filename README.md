@@ -13,13 +13,31 @@ The code uses an input line-fitting parameter list to specify the fitting range 
 Use this code at your own risk, as we are not responsible for any errors. But if you report bugs, it will be greatly appreciated.
 
 
-### Hall Research Group Fork
+### Installation
+
+See the example.ipynb notebook.
+
+Move to the folder in which you want the PyQSOFit source code folder to be created, then type:
+
+git clone https://github.com/HallAstroResearch/PyQSOFit
+
+You can edit the code in this folder, BUT see below.  
+Now install the program where python can find it (in your python path):
+
+cd PyQSOFit
+python -m pip install .
+
+AFTER YOU CHANGE THE CODE YOU WILL NEED TO RERUN THE ABOVE TWO COMMANDS FOR THOSE CHANGES TO TAKE EFFECT.  
+
+
+### Hall Research Group Fork Changes
 
 20250513:
 - Incorporated LMS (Lucas M. Seaton) changes to PyQSOFit.py.
+- Edited example.ipynb to work with those changes.
 - Added LMS_pyQSO_call.py to show how Lucas calls PyQSOFit.
 - Added HostDecompV2.0.0.py and PyQSOFitV2.1.6.py purely for reference.
-
+- Renumbered to 2.1.6.0; this fork's versions will have a 4th digit to distinguish them
 
 ### Cite
 
