@@ -89,12 +89,12 @@
 #        estimation of the decomposed host component.
 # -------------------------------------------------
 
-import sys, os
+import sys, os, copy
 import glob
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
+from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 from itertools import chain
 
 from sfdmap2 import sfdmap
@@ -395,26 +395,29 @@ class QSOFit():
         
         Properties:
         -----------
-        .wave: array
-            the rest wavelength, some pixels have been removed.
+        .lam: array
+            the observed wavelength, some pixels removed.
             
+        .wave: array
+            the rest wavelength, some pixels removed.
+
         .flux: array
-            the rest flux. Dereddened and *(1+z) flux.  
+            the rest flux, some pixels removed. Dereddened and *(1+z) flux.  
             
         .err: array
-            the error.
+            the error, some pixels removed.
         
         .wave_prereduced: array
-            the wavelength after removing bad pixels, masking, deredden, 
-            spectral trim, and smoothing.
+            the rest wavelength after removing bad pixels, deredden, 
+            spectral trim, and smoothing (BEFORE wave_mask masking).
             
         .flux_prereduced: array
-            the flux after removing bad pixels, masking, deredden, spectral 
-            trim, and smoothing.
+            the flux after removing bad pixels, deredden, spectral 
+            trim, and smoothing (BEFORE wave_mask masking).
             
         .err_prereduced: array
-            the error after removing bad pixels, masking, deredden, spectral 
-            trim, and smoothing.
+            the error after removing bad pixels, deredden, spectral 
+            trim, and smoothing (BEFORE wave_mask masking).
             
         .host: array
             the model of host galaxy from PCA method
@@ -455,7 +458,7 @@ class QSOFit():
         .line_flux: array
             the emission line flux after subtracting the .f_conti_model.
         
-        .line_fit: structrue
+        .line_fit: structure
             Line fitting results for last complexes (From Lya to Ha) , 
             including best-fit parameters, errors (lmfit derived) and 
             Chisquare, etc. For details, see 
@@ -622,16 +625,22 @@ class QSOFit():
         # Set fitting wavelength range
         if wave_range is not None:
             self._WaveTrim(self.lam, self.flux, self.err, self.z)#;print('625: len(self.lam) =',len(self.lam))
-        # Set manual wavelength mask
-        if wave_mask is not None:
-            self._WaveMsk(self.lam, self.flux, self.err, self.z)#;print('629: len(self.lam) =',len(self.lam))
+        # # Set manual wavelength mask: PBH moved to after dereddening and OriginalSpec
+        # if wave_mask is not None:
+        #    self._WaveMsk(self.lam, self.flux, self.err, self.z)#;print('629: len(self.lam) =',len(self.lam))
         # Deredden
         if deredden == True and self.ra != -999. and self.dec != -999.:
             self._DeRedden(self.lam, self.flux, self.err, self.ra, self.dec, 
                            dustmap_path)#;print('634: len(self.lam) =',len(self.lam))
         self._RestFrame(self.lam, self.flux, self.err, self.z)
         self._CalculateSN(self.wave, self.flux)
-        self._OrignialSpec(self.wave, self.flux, self.err)#;print('634: len(self.wave) =',len(self.wave))
+        # OriginalSpec creates self.wave/flux/err_prereduced DO include all regions in wave_mask
+        self._OriginalSpec(self.wave, self.flux, self.err)#;print('634: len(self.wave) =',len(self.wave))
+        # Set manual wavelength mask: PBH moved to after dereddening and OriginalSpec
+        # WaveMsk recreates self.lam/flux/err which DO NOT include any regions in wave_mask
+        if wave_mask is not None:
+            self._WaveMsk(self.lam, self.flux, self.err, self.z)#;print('629: len(self.lam) =',len(self.lam))
+            #print(self.lam[850:950]) # PBH test
 
         """
         Do host decomposition
@@ -768,8 +777,10 @@ class QSOFit():
 
         for msk in range(len(self.wave_mask)):
             try:
-                ind_not_mask = ~np.where((lam / (1 + z) > self.wave_mask[msk, 0]) 
-                                         & (lam / (1 + z) < self.wave_mask[msk, 1]),
+                #ind_not_mask = ~np.where((lam / (1 + z) > self.wave_mask[msk, 0]) 
+                #                         & (lam / (1 + z) < self.wave_mask[msk, 1]),
+                ind_not_mask = ~np.where((lam > self.wave_mask[msk, 0]) # PBH work in rest frame
+                                         & (lam < self.wave_mask[msk, 1]), # PBH work in rest frame
                     True, False)
             except IndexError:
                 raise RuntimeError("Wave_mask should be 2D array, e.g., "
@@ -802,11 +813,11 @@ class QSOFit():
         self.err = err #obs frame
         return self.wave, self.flux, self.err
 
-    def _OrignialSpec(self, wave, flux, err):
+    def _OriginalSpec(self, wave, flux, err):
         """Save the orignial spectrum before host galaxy decompsition"""
-        self.wave_prereduced = wave
-        self.flux_prereduced = flux
-        self.err_prereduced = err
+        self.wave_prereduced = copy.deepcopy(wave) # wave
+        self.flux_prereduced = copy.deepcopy(flux) # flux
+        self.err_prereduced = copy.deepcopy(err) # err
 
     def _CalculateSN(self, wave, flux, alter=True):
         """
@@ -1250,6 +1261,8 @@ class QSOFit():
         # Print fit report
         if self.verbose:
             print('Continuum Fit report')
+            print('wave_mask = ', self.wave_mask) # PBH
+            print('reduced chi^2 = ', conti_fit.redchi) # PBH
             report_fit(conti_fit.params)
 
         """
@@ -1469,6 +1482,7 @@ class QSOFit():
                              self.f_fe_balmer_model + self.f_poly_model + \
                              self.f_bc_model
         self.line_flux = flux - self.f_conti_model
+        self.line_flux_prereduced = self.flux_prereduced - self.f_conti_model
         self.PL_poly_BC = self.f_pl_model + self.f_poly_model + self.f_bc_model
 
         return self.conti_result, self.conti_result_name
@@ -1495,7 +1509,7 @@ class QSOFit():
     def fit_lines(self, wave, line_flux, err, f):
         """Fit the emission lines with Gaussian profiles """
 
-        # Remove abosorbtion lines in emission line region, pixels below continuum
+        # Remove absorption lines in emission line region, pixels below continuum
         ind_neg_line = ~np.where(((((wave > 2700.) & (wave < 2900.)) | ((wave > 1700.) & (wave < 1970.)) |
                                    ((wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) |
                                    ((wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
@@ -1621,7 +1635,7 @@ class QSOFit():
                     together
                     
                     We will always tie to the 1st parameter with the same index
-                    and skip tiing the first parameter itself, which is 
+                    and skip tying the first parameter itself, which is 
                     redundant and gives a recusion error
                     """
 
@@ -2268,7 +2282,7 @@ class QSOFit():
                                       # absolute value to fully fix this bug
             
             # LMS: Scale of x-axis and y-axis of main plot.
-            AxesScale = 'lin' #'xlog','ylog','log','lin'
+            AxesScale = 'xlog' #'lin' #'xlog','ylog','log','lin'
             logV2 = False #Changing the axis scale -> Not Working
 
             # Prepare for the emission line subplots in the second row
@@ -2343,7 +2357,10 @@ class QSOFit():
 
                 # Set axis limits
                 if ncomp_fit > 1:
-                    axn[c].set_xlim(self.all_comp_range[2 * c:2 * c + 2])
+                    #axn[c].set_xlim(self.all_comp_range[2 * c:2 * c + 2]) # PBH replaced with below
+                    com_min = self.all_comp_range[2*c] * 0.96 # - 50.
+                    com_max = self.all_comp_range[2*c+1] / 0.96 # + 50.
+                    axn[c].set_xlim(com_min, com_max)
                 if ncomp_fit == 1:
                     # print('self.all_comp_range[2*%s:2*%s+2] = self.all_comp_range[%s:%s] = %s'%(c,c,2*c,2*c+2,self.all_comp_range[2*c:c*2+2]))
                     # print('self.all_comp_range =',self.all_comp_range)
@@ -2367,23 +2384,106 @@ class QSOFit():
 
                 if ylims is None:
                     if ncomp_fit > 1:
-                        axn[c].set_ylim(f_min * 0.9, f_max * 1.1)
+                        axn[c].set_ylim(-10, f_max + 5.0) # was 0.9, 1.1
+                        #axn[c].set_ylim(f_min * 1.2, f_max * 1.1) # was 0.9, 1.1
                     if ncomp_fit == 1:
-                        axn.set_ylim(f_min * 0.9, f_max * 1.1)
+                        axn.set_ylim(-10, f_max + 5.0) # was 0.9, 1.1
+                        #axn.set_ylim(f_min * 1.2, f_max * 1.1) # was 0.9, 1.1
                 else:
                     if ncomp_fit > 1:
                         axn[c].set_ylim(ylims[0], ylims[1])
                     if ncomp_fit == 1:
                         axn.set_ylim(ylims[0], ylims[1])
 
+                # Wave mask for plotting
+                #print('self.wave_mask = ', self.wave_mask) # PBH
+                #if ncomp_fit > 0: # PBH spoofing to test commenting out masking in plots
+                if self.wave_mask is not None:
+                    for j, w in enumerate(self.wave_mask):
+                        # Grey out masked regions - PBH commented out
+                        #if ncomp_fit > 1:
+                        #    axn[c].axvspan(w[0], w[1], color='k', alpha=0.25)
+                        #if ncomp_fit == 1:
+                        #    axn.axvspan(w[0], w[1], color='k', alpha=0.25)
+                        # Plot avoiding drawing lines between masked values - PBH commented out 20250523 to test
+                        label_data = None
+                        label_resid = None
+                        if j == 0: # plot shortest unmasked wavelengths in black and first masked region in grey
+                            mask = self.wave < w[0]
+                            #mask = self.wave_prereduced < w[0]
+                            mask2 = (self.wave_prereduced > w[0]) & (self.wave_prereduced < w[1])
+                            label_data = 'data'
+                            label_resid = 'resid'
+                            if ncomp_fit > 1:
+                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+                                axn[c].plot(self.wave_prereduced[mask2], self.line_flux_prereduced[mask2], 
+                                            'k', alpha=0.25, lw=1, zorder=2)
+                            if ncomp_fit == 1:
+                                axn.plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+                        if j == len(self.wave_mask) - 1: # plot longest unmasked wvelengths in black
+                            mask = self.wave > w[1]
+                            #mask = self.wave_prereduced > w[1]
+                            if ncomp_fit > 1:
+                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+                            if ncomp_fit == 1:
+                                axn.plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+                        else: # plot in between each masked region in black, and plot next masked region in grey
+                            mask = (self.wave > w[1]) & (self.wave < self.wave_mask[j + 1, 0])
+                            mask2 = (self.wave_prereduced > self.wave_mask[j+1,0]) & (self.wave_prereduced < self.wave_mask[j+1,1])
+                            if ncomp_fit > 1:
+                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+                                axn[c].plot(self.wave_prereduced[mask2], self.line_flux_prereduced[mask2], 
+                                            'k', alpha=0.25, lw=1, zorder=2)
+                            if ncomp_fit == 1:
+                                axn.plot(self.wave[mask], self.line_flux[mask], 
+                                            'k', label=label_data, lw=1, zorder=2)
+
+                        # Residual
+                        if plot_residual:
+                            if ncomp_fit > 1:
+                                #print(c, '...ncomp_fit=', ncomp_fit, _pretty_name(self.uniq_linecomp_sort[c]))
+                                axn[c].axhline(-5, color='k', zorder=0, lw=0.5)
+                                # PBH: rewrote next line to plot residuals even in masked regions
+                                #axn[c].plot(self.wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 
+                                axn[c].plot(self.wave, self.line_flux - self.f_line_model - 5, 
+                                            'gray', label=label_resid, linestyle='dotted', lw=1, zorder=3)
+                            if ncomp_fit == 1:
+                                #print(c, ' ...ncomp_fit=', ncomp_fit)
+                                axn.axhline(-5, color='k', zorder=0, lw=0.5)
+                                axn.plot(self.wave, self.line_flux - self.f_line_model - 5, 
+                                            'gray', label=label_resid, linestyle='dotted', lw=1, zorder=3)
+                else:
+                    if ncomp_fit > 1:
+                        axn[c].plot(self.wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
+                    if ncomp_fit == 1:
+                        axn.plot(self.wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
+                    # Residual
+                    if plot_residual:
+                        if ncomp_fit > 1:
+                            #print(c, ' ncomp_fit=', ncomp_fit)
+                            axn[c].axhline(-5, color='k', zorder=0, lw=0.5)
+                            axn[c].plot(self.wave, self.line_flux - self.f_line_model - 5, 'gray',
+                                    label='resid', linestyle='dotted', lw=1, zorder=3)
+                        if ncomp_fit == 1:
+                            #print(c, '  ncomp_fit=', ncomp_fit)
+                            axn.axhline(-5, color='k', zorder=0, lw=0.5)
+                            axn.plot(self.wave, self.line_flux - self.f_line_model - 5, 'gray',
+                                        label='resid', linestyle='dotted', lw=1, zorder=3)
+
+                # Labels and chi^2
                 if ncomp_fit > 1:
                     axn[c].set_xticks([self.all_comp_range[2 * c],
                                           np.round((self.all_comp_range[2 * c] + 
                                                     self.all_comp_range[2 * c + 1]) / 2, -1),
                                           self.all_comp_range[2 * c + 1]])
                     axn[c].text(0.02, 0.9, _pretty_name(self.uniq_linecomp_sort[c]), fontsize=20,
-                                   transform=axn[c].transAxes)
-                    axn[c].text(0.02, 0.825, r'$\chi ^2_\nu=$' + str(np.round(float(self.comp_result[c * 7 + 4]), 2)),
+                                   transform=axn[c].transAxes, color='red')
+                    axn[c].text(0.62, 0.9, r'$\chi ^2_\nu=$' + str(np.round(float(self.comp_result[c * 7 + 4]), 2)),
                                    fontsize=12, transform=axn[c].transAxes)
                 if ncomp_fit == 1:
                     axn.set_xticks([self.all_comp_range[2 * c],
@@ -2391,8 +2491,8 @@ class QSOFit():
                                                     self.all_comp_range[2 * c + 1]) / 2, -1),
                                           self.all_comp_range[2 * c + 1]])
                     axn.text(0.02, 0.9, _pretty_name(self.uniq_linecomp_sort[c]), fontsize=20,
-                                   transform=axn.transAxes)
-                    axn.text(0.02, 0.825, r'$\chi ^2_\nu=$' + str(np.round(float(self.comp_result[c * 7 + 4]), 2)),
+                                   transform=axn.transAxes, color='red')
+                    axn.text(0.62, 0.9, r'$\chi ^2_\nu=$' + str(np.round(float(self.comp_result[c * 7 + 4]), 2)),
                                    fontsize=12, transform=axn.transAxes)
 
                 # Broad line properties
@@ -2416,14 +2516,14 @@ class QSOFit():
                         val2 = int(np.round(fwhm, 0))
                         err2 = int(np.round(fwhm_err, 0))
                         if ncomp_fit > 1:
-                            axn[c].text(0.02, 0.75,
+                            axn[c].text(0.02, 0.825,
                                         fr'$L_{{\rm{{br}}}}=10^{{{{{val1}}}\pm{{{err1}}}}}$' + 
                                         r'$\ \rm{erg}\ \rm{s}^{-1}$', 
-                                        fontsize=12, transform=axn[c].transAxes)
-                            axn[c].text(0.02, 0.675,
+                                        fontsize=12, transform=axn[c].transAxes, color='red')
+                            axn[c].text(0.02, 0.75,
                                         fr'${{\rm{{FWHM}}}}_{{\rm{{br}}}}={{{val2}}}\pm{{{err2}}}$'
                                         + r'$\ \rm{km}\ \rm{s}^{-1}$',
-                                        fontsize=12, transform=axn[c].transAxes)
+                                        fontsize=12, transform=axn[c].transAxes, color='red')
                         if ncomp_fit == 1:
                             axn.text(0.02, 0.175, #0.02, 0.775
                                         fr'$L_{{\rm{{br}}}}=10^{{{{{val1}}}\pm{{{err1}}}}}$' + 
@@ -2436,113 +2536,59 @@ class QSOFit():
                     else:
                     # if mc_flag != 2:
                         if ncomp_fit > 1:
+                            axn[c].text(0.02, 0.825,
+                                        fr'$L_{{\rm{{br}}}}=10^{{{np.round(np.log10(self.flux2L(area)), 1)}}}$'
+                                        + r'$\ \rm{erg}\ \rm{s}^{-1}$',
+                                           fontsize=12, transform=axn[c].transAxes, color='red')
                             axn[c].text(0.02, 0.75,
-                                        fr'$L_{{\rm{{br}}}}=10^{{{np.round(np.log10(self.flux2L(area)), 1)}}}$'
-                                        + r'$\ \rm{erg}\ \rm{s}^{-1}$',
-                                           fontsize=12, transform=axn[c].transAxes)
-                            axn[c].text(0.02, 0.675,
                                         fr'${{\rm{{FWHM}}}}_{{\rm{{br}}}}={{{int(np.round(fwhm, 0))}}}$'
                                         + r'$\ \rm{km}\ \rm{s}^{-1}$',
-                                           fontsize=12, transform=axn[c].transAxes)
+                                           fontsize=12, transform=axn[c].transAxes, color='red')
                         if ncomp_fit == 1:
+                            axn.text(0.02, 0.825,
+                                        fr'$L_{{\rm{{br}}}}=10^{{{np.round(np.log10(self.flux2L(area)), 1)}}}$'
+                                        + r'$\ \rm{erg}\ \rm{s}^{-1}$',
+                                           fontsize=12, transform=axn.transAxes)
                             axn.text(0.02, 0.75,
-                                        fr'$L_{{\rm{{br}}}}=10^{{{np.round(np.log10(self.flux2L(area)), 1)}}}$'
-                                        + r'$\ \rm{erg}\ \rm{s}^{-1}$',
-                                           fontsize=12, transform=axn.transAxes)
-                            axn.text(0.02, 0.675,
                                         fr'${{\rm{{FWHM}}}}_{{\rm{{br}}}}={{{int(np.round(fwhm, 0))}}}$'
                                         + r'$\ \rm{km}\ \rm{s}^{-1}$',
                                            fontsize=12, transform=axn.transAxes)
                     if ncomp_fit > 1:
-                        axn[c].text(0.02, 0.6, fr'$S/N_{{\rm{{br}}}}={np.round(snr, 1)}$',
-                                       fontsize=12, transform=axn[c].transAxes)
+                        axn[c].text(0.62, 0.675, fr'$S/N_{{\rm{{br}}}}={np.round(snr, 1)}$',
+                                       fontsize=12, transform=axn[c].transAxes, color='red')
                     if ncomp_fit == 1:
-                        axn.text(0.02, 0.75, #0.6
+                        axn.text(0.62, 0.825, #0.6
                                  fr'$S/N_{{\rm{{br}}}}={np.round(snr, 1)}$',
-                                       fontsize=12, transform=axn.transAxes)
+                                       fontsize=12, transform=axn.transAxes, color='red')
 
-                # Wave mask
-                if self.wave_mask is not None:
-                    for j, w in enumerate(self.wave_mask):
-                        if ncomp_fit > 1:
-                            axn[c].axvspan(w[0], w[1], color='k', alpha=0.25)
-                        if ncomp_fit == 1:
-                            axn.axvspan(w[0], w[1], color='k', alpha=0.25)
-                        # Plot avoiding drawing lines between masked values
-                        label_data = None
-                        label_resid = None
-                        if j == 0:
-                            mask = self.wave < w[0]
-                            label_data = 'data'
-                            label_resid = 'resid'
-                            if ncomp_fit > 1:
-                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-                            if ncomp_fit == 1:
-                                axn.plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-                        if j == len(self.wave_mask) - 1:
-                            mask = self.wave_prereduced > w[1]
-                            if ncomp_fit > 1:
-                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-                            if ncomp_fit == 1:
-                                axn.plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-                        else:
-                            mask = (self.wave > w[1]) & (self.wave < self.wave_mask[j + 1, 0])
-                            if ncomp_fit > 1:
-                                axn[c].plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-                            if ncomp_fit == 1:
-                                axn.plot(self.wave[mask], self.line_flux[mask], 
-                                            'k', label=label_data, lw=1, zorder=2)
-
-                        # Residual
-                        if plot_residual:
-                            if ncomp_fit > 1:
-                                axn[c].axhline(-5, color='k', zorder=0, lw=0.5)
-                                axn[c].plot(self.wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 
-                                            'gray', label=label_resid, linestyle='dotted', lw=1, zorder=3)
-                            if ncomp_fit == 1:
-                                axn.axhline(-5, color='k', zorder=0, lw=0.5)
-                                axn.plot(self.wave[mask], self.line_flux[mask] - self.f_line_model[mask] - 5, 
-                                            'gray', label=label_resid, linestyle='dotted', lw=1, zorder=3)
-                else:
-                    if ncomp_fit > 1:
-                        axn[c].plot(self.wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
-                    if ncomp_fit == 1:
-                        axn.plot(self.wave, self.line_flux, 'k', label='data', lw=1, zorder=2)
-                    # Residual
-                    if plot_residual:
-                        if ncomp_fit > 1:
-                            axn[c].axhline(-5, color='k', zorder=0, lw=0.5)
-                            axn[c].plot(self.wave, self.line_flux - self.f_line_model - 5, 'gray',
-                                    label='resid', linestyle='dotted', lw=1, zorder=3)
-                        if ncomp_fit == 1:
-                            axn.axhline(-5, color='k', zorder=0, lw=0.5)
-                            axn.plot(self.wave, self.line_flux - self.f_line_model - 5, 'gray',
-                                        label='resid', linestyle='dotted', lw=1, zorder=3)
         else:
             # If no lines are fitted, there would be only one row
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 5))
         # End line complex subplots
 
         # Main figure
+        # Wave mask for plotting
         if self.wave_mask is not None:
-            # print('self.wave_mask =',self.wave_mask)
+            #print('self.wave_mask =',self.wave_mask)
             for j, w in enumerate(self.wave_mask):
-                ax.axvspan(w[0], w[1], color='k', alpha=0.25)
+                # Grey out that part of the main plot:
+                #ax.axvspan(w[0], w[1], color='k', alpha=0.25)
 
                 # Plot avoiding drawing lines between masked values
-                if j == 0:
+                if j == 0: # plot shortest unmasked wavelengths in black and first masked region in grey
+                    #print ('j=', j, ' w[0] = ', w[0], ' w[1] = ', w[1])
                     mask = self.wave_prereduced < w[0]
+                    mask2 = (self.wave_prereduced > w[0]) & (self.wave_prereduced < w[1])
                     if AxesScale == 'lin':
                         ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                 'k', label='data', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask2], self.flux_prereduced[mask2], 
+                                'k', alpha=0.25, lw=1, zorder=2)
                     if AxesScale == 'xlog':
                         ax.semilogx(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                     'k', label='data', lw=1, zorder=2)
+                        ax.semilogx(self.wave_prereduced[mask2], self.flux_prereduced[mask2], 
+                                'k', alpha=0.25, lw=1, zorder=2)
                     if AxesScale == 'ylog':
                         ax.semilogy(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                     'k', label='data', lw=1, zorder=2)
@@ -2551,11 +2597,11 @@ class QSOFit():
                                     'k', label='data', lw=1, zorder=2)
                     # ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 
                     #         'gray', label='error', lw=1, zorder=1)
-                if j == len(self.wave_mask) - 1:
+                if j == len(self.wave_mask) - 1: # plot longest unmasked wavelengths in black
+                    #print ('j= ', j, ' w[1] = ', w[1])
                     mask = self.wave_prereduced > w[1]
                     if AxesScale == 'lin':
-                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 
-                                'k', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 'k', lw=1, zorder=2)
                     if AxesScale == 'xlog':
                         ax.semilogx(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                     'k', lw=1, zorder=2)
@@ -2566,14 +2612,20 @@ class QSOFit():
                         ax.loglog(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                   'k', lw=1, zorder=2)
                     # ax.plot(self.wave_prereduced[mask], self.err_prereduced[mask], 'gray', lw=1, zorder=1)
-                else:
+                else: # plot in between each masked region in black, and plot next masked region in grey
+                    #print ('j = ', j, ' w[1] = ', w[1], ' wave_mask[j+1,0] = ', self.wave_mask[j+1,0], self.wave_mask[j+1,1])
                     mask = (self.wave_prereduced > w[1]) & (self.wave_prereduced < self.wave_mask[j + 1, 0])
+                    mask2 = (self.wave_prereduced > self.wave_mask[j+1,0]) & (self.wave_prereduced < self.wave_mask[j+1,1])
                     if AxesScale == 'lin':
                         ax.plot(self.wave_prereduced[mask], self.flux_prereduced[mask], 
-                                'k', lw=1, zorder=2)
+                                    'k', lw=1, zorder=2)
+                        ax.plot(self.wave_prereduced[mask2], self.flux_prereduced[mask2], 
+                                    'k', alpha=0.25, lw=1, zorder=2)
                     if AxesScale == 'xlog':
                         ax.semilogx(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                     'k', lw=1, zorder=2)
+                        ax.semilogx(self.wave_prereduced[mask2], self.flux_prereduced[mask2], 
+                                    'k', alpha=0.25, lw=1, zorder=2)
                     if AxesScale == 'ylog':
                         ax.semilogy(self.wave_prereduced[mask], self.flux_prereduced[mask], 
                                     'k', lw=1, zorder=2)
@@ -2607,37 +2659,37 @@ class QSOFit():
             if ncomp_fit == 1:
                 axz.plot(self.wave_prereduced, self.flux_prereduced, 'k', label='data', lw=1, zorder=2)
 
-            # Residual
-            ###################################################################
-            if plot_residual == True:
-                if self.linefit == True:
-                    if AxesScale == 'lin':
-                        ax.plot(self.wave, self.line_flux - self.f_line_model, 
+        # Residual
+        ###################################################################
+        if plot_residual == True:
+            if self.linefit == True:
+                if AxesScale == 'lin':
+                    ax.plot(self.wave, self.line_flux - self.f_line_model, 
+                            'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
+                if AxesScale == 'xlog':
+                    #print('Should be plotting residual in semilogx on main plot (linefit+)') PBH
+                    ax.semilogx(self.wave, self.line_flux - self.f_line_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'xlog':
-                        ax.semilogx(self.wave, self.line_flux - self.f_line_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'ylog':
-                        ax.semilogy(self.wave, self.line_flux - self.f_line_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'log':
-                        ax.loglog(self.wave, self.flux - self.f_conti_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                else:
-                    if AxesScale == 'lin':
-                        ax.plot(self.wave, self.flux - self.f_conti_model, 
+                if AxesScale == 'ylog':
+                    ax.semilogy(self.wave, self.line_flux - self.f_line_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'xlog':
-                        ax.semilogx(self.wave, self.flux - self.f_conti_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'ylog':
-                        ax.semilogy(self.wave, self.flux - self.f_conti_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    if AxesScale == 'log':
-                        ax.loglog(self.wave, self.flux - self.f_conti_model, 
-                                    'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-
-
+                if AxesScale == 'log':
+                    ax.loglog(self.wave, self.flux - self.f_conti_model, 
+                                'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
+            else:
+                if AxesScale == 'lin':
+                    ax.plot(self.wave, self.flux - self.f_conti_model, 
+                            'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
+                if AxesScale == 'xlog':
+                    #print('Should be plotting residual in semilogx on main plot (linefit-)') PBH
+                    ax.semilogx(self.wave, self.flux - self.f_conti_model, 
+                                'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
+                if AxesScale == 'ylog':
+                    ax.semilogy(self.wave, self.flux - self.f_conti_model, 
+                                'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
+                if AxesScale == 'log':
+                    ax.loglog(self.wave, self.flux - self.f_conti_model, 
+                                'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
 
         # Title
         if show_title == True:
@@ -2660,11 +2712,12 @@ class QSOFit():
             host = self.flux_prereduced.min()
 
         # Line legend hack
-        ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5)
-        ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5)
+        ax.plot([0, 0], [0, 0], 'r', label='line br', zorder=5) # plot broad lines in red
+        ax.plot([0, 0], [0, 0], 'g', label='line na', zorder=5) # plot narrow lines in green
 
         # Continuum results
         #######################################################################
+        # Plot Fe II as cyan
         if AxesScale == 'lin':
             ax.plot(wave_eval, f_conti_model_eval, 'c', lw=2, label='FeII', zorder=7)
         if AxesScale == 'xlog':
@@ -2674,7 +2727,7 @@ class QSOFit():
         if AxesScale == 'log':
             ax.loglog(wave_eval, f_conti_model_eval, 'c', lw=2, label='FeII', zorder=7)
 
-        if self.BC == True: # Balmer Continuum
+        if self.BC == True: # Balmer Continuum, plot as yellow if fit
             if AxesScale == 'lin':
                 ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) 
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
@@ -2689,6 +2742,7 @@ class QSOFit():
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
         
         #######################################################################
+        # Plot powerlaw+polynomial as orange
         if AxesScale == 'lin':
             ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
@@ -2722,9 +2776,16 @@ class QSOFit():
         yContiWE = self.PL(wave_eval, pp)+self.F_poly_conti(wave_eval, pp[11:])
         yConti = self.PL(self.wave, pp)+self.F_poly_conti(self.wave, pp[11:])
         if self.verbose:
+            print('')
+            #print('len(self.wave_prereduced) = ',len(self.wave_prereduced))
             print('len(self.wave) = ',len(self.wave))
-            print('len(yConti) = ',len(yConti))
+            #print('len(yContiWE) = ',len(yContiWE))
+            #print('len(yConti) = ',len(yConti))
+            #print('len(self.lam) = ',len(self.lam))
+            print('len(self.flux) = ',len(self.flux))
             print('len(self.err) =',len(self.err))
+            #print('len(self.line_flux) = ',len(self.line_flux))
+            print('')
         
         #Continuum model in observed flux: (Power Law) + (MgII FeII flux) + (Hβ/H𝛼 FeII flux) 
         #                                   + (Polynomial) + (Balmer continuum)
@@ -2770,6 +2831,7 @@ class QSOFit():
         RAWfile.close()
         print('QSOFit-reduced spectrum saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
+        print('')
         
         """
         Continuum components described by 14 parameters
@@ -2801,7 +2863,8 @@ class QSOFit():
                 plot_bottom = min(self.host.min(), self.flux.min())
 
         if ylims is None:
-            ylims = [plot_bottom * 0.9, plot_top * 1.25]
+            ylims = [-10, plot_top * 1.25]
+            #ylims = [plot_bottom * 0.9, plot_top * 1.25]
         
         ylimits = ylims
         # if ncomp_fit == 1:
@@ -2863,11 +2926,17 @@ class QSOFit():
             axz.set_xlim(4650, 5650)
             axz.set_ylim(0, 3)
         
+        # Plot continuum fit reduced chi^2
+        ax.text(0.90*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu=$' + str(np.round(float(self.conti_fit.redchi), 3)), fontsize=10)
         ######################
         if AxesScale == 'lin' and logV2 == True:
             ax.set_xscale('log') # Set x-scale to logarithimic
             ax.set_yscale('log') # Set y-scale to logarithimic
         
+        # rest-frame x-axis minor ticks ... have to figure out how to adjust for dift rest frame coverage
+        minor_ticks=np.arange(1100,3500,100)
+        ax.set_xticks(minor_ticks, minor=True)
+        ax.xaxis.set_minor_formatter(FormatStrFormatter('%5d'))
 
         # Label axes
         if self.linefit == True:

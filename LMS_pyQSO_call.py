@@ -183,7 +183,7 @@ if fitPQF==True:
         ('Fe_op_shift', 0.0,   -0.01, 0.01,  1), # Wavelength shift of the Hβ/H𝛼 Fe template [ln(𝜆)]
         ('PL_norm',     1.0,   0.0,   1e10,  1), # Normalization of the power-law (PL) continuum f_𝜆=(𝜆/3000)^{-𝛼}
         ('PL_slope',    -1.5,  -5.0,  3.0,   1), # Slope of the power-law (PL) continuum
-        ('Blamer_norm', 0.0,   0.0,   1e10,  1), # Normalization of the Balmer continuum at <3646 Å [flux]
+        ('Balmer_norm', 0.0,   0.0,   1e10,  1), # Normalization of the Balmer continuum at <3646 Å [flux]
         ('Balmer_Te',   15000, 10000, 50000, 1), # Te of the Balmer continuum at < 3646 Å [K?]
         ('Balmer_Tau',  0.5,   0.1,   2.0,   1), # Tau of the Balmer continuum at < 3646 Å
         ('conti_a_0',   0.0,   None,  None,  1), # 1st coefficient of the polynomial continuum
@@ -248,7 +248,7 @@ if fitPQF==True:
     # path_out = path_ex
     # print(f'path_out: {path_out}')
 
-    # Requried
+    # Required
     key = 'UV2'
     data = cp.deepcopy(spectraObserved[key])
     lam = data[:,0]                         # OBS wavelength [Å]
