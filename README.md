@@ -15,19 +15,32 @@ Use this code at your own risk, as we are not responsible for any errors. But if
 
 ### Installation
 
-See the example.ipynb notebook.
+See the j0242 folder
+example.ipynb notebook in the example folder.
 
 Move to the folder in which you want the PyQSOFit source code folder to be created, then type:
 
 git clone https://github.com/HallAstroResearch/PyQSOFit
 
-You can edit the code in this folder, BUT see below.  
+You can edit the code in this folder, BUT SEE THE ALL-CAPS NOTE BELOW.  
 Now install the program where python can find it (in your python path):
 
 cd PyQSOFit
+
 python -m pip install .
 
 AFTER YOU CHANGE THE CODE YOU WILL NEED TO RERUN THE ABOVE TWO COMMANDS FOR THOSE CHANGES TO TAKE EFFECT.  
+
+AND BE SURE TO MOVE THE EXAMPLE PYTHON NOTEBOOK TO A WORKING DIRECTORY ON YOUR OWN MACHINE BEFORE CHANGING AND RUNNING IT!  That will avoid it getting overwritten if you download a new version of the software from Github.
+
+
+### Example Usage
+
+Run the example0242.ipynb notebook in the j0242 folder:
+
+jupyter notebook example0242.ipynb
+
+The original example.ipynb notebook can still be found in the example folder, for reference.
 
 
 ### Hall Research Group Fork Changes
@@ -38,6 +51,9 @@ AFTER YOU CHANGE THE CODE YOU WILL NEED TO RERUN THE ABOVE TWO COMMANDS FOR THOS
 - Added LMS_pyQSO_call.py to show how Lucas calls PyQSOFit.
 - Added HostDecompV2.0.0.py and PyQSOFitV2.1.6.py purely for reference.
 - Renumbered to 2.1.6.0; this fork's versions will have a 4th digit to distinguish them
+
+202506:
+- Created example0242.ipynb
 
 ### Cite
 
