@@ -2217,7 +2217,7 @@ class QSOFit():
 
     def plot_fig(self, save_fig_path='.', broad_fwhm=1200, plot_line_name=True, 
                  plot_legend=True, ylims=None, plot_residual=True,
-                 show_title=True, plot_br_prop=True): 
+                 show_title=True, plot_br_prop=False): 
         """Plot the results
         
         broad_fwhm: float, optional
