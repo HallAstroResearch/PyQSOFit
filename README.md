@@ -15,9 +15,6 @@ Use this code at your own risk, as we are not responsible for any errors. But if
 
 ### Installation
 
-See the j0242 folder
-example.ipynb notebook in the example folder.
-
 Move to the folder in which you want the PyQSOFit source code folder to be created, then type:
 
 git clone https://github.com/HallAstroResearch/PyQSOFit
@@ -54,6 +51,7 @@ The original example.ipynb notebook can still be found in the example folder, fo
 
 202506:
 - Created example0242.ipynb
+
 
 ### Cite
 
