@@ -2217,7 +2217,7 @@ class QSOFit():
 
     def plot_fig(self, save_fig_path='.', broad_fwhm=1200, plot_line_name=True, 
                  plot_legend=True, ylims=None, plot_residual=True,
-                 show_title=True, plot_br_prop=False): 
+                 show_title=True, plot_br_prop=True): 
         """Plot the results
         
         broad_fwhm: float, optional
@@ -2498,15 +2498,16 @@ class QSOFit():
                 # Broad line properties
                 if plot_br_prop == True:
                     # FWHM and luminosity
-                    fwhm = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_fwhm'][0]
-                    area = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_area'][0]
-                    snr = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_snr'][0]
+                    # PBH: if block below skips calculations for line complexes where fitting completely fails
+                    if np.any([self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_fwhm'][0]) == True: 
+                        fwhm = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_fwhm'][0] 
+                        area = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_area'][0] 
+                        snr = self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_snr'][0] 
                     if mc_flag == 2:
                         fwhm_err = \
                         self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_fwhm_err'][0]
                         area_err = \
                         self.fur_result[self.fur_result_name == f'{self.uniq_linecomp_sort[c]}_whole_br_area_err'][0]
-                        
                         
                         #### To save horizontal space, the values within the {}
                         #### have been replaced by variables. Not sure if this
