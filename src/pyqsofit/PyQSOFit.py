@@ -157,7 +157,7 @@ class QSOFit():
         
         plateid, mjd, fiberid: integer number, optional
             If the source is SDSS object, they have the plate ID, MJD and Fiber 
-            ID in their file herader.
+            ID in their file header.
             
         path: str
             the path to the parameter file
@@ -1026,6 +1026,8 @@ class QSOFit():
         
         """
         self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
+        if self.name=='J0242': # PBH: for J0242, model Fe II emission at >1560 Ang only
+          self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uvgt1560.txt'))
         self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
 
         # Read line parameter file

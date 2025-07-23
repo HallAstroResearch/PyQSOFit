@@ -28,7 +28,7 @@ python -m pip install .
 
 AFTER YOU CHANGE THE CODE YOU WILL NEED TO RERUN THE ABOVE TWO COMMANDS FOR THOSE CHANGES TO TAKE EFFECT.  
 
-AND BE SURE TO MOVE THE EXAMPLE PYTHON NOTEBOOK TO A WORKING DIRECTORY ON YOUR OWN MACHINE BEFORE CHANGING AND RUNNING IT!  That will avoid it getting overwritten if you download a new version of the software from Github.
+AND BE SURE TO MOVE THE EXAMPLE PYTHON NOTEBOOK TO A WORKING DIRECTORY ON YOUR OWN MACHINE BEFORE CHANGING AND RUNNING IT!  (SEE 'Your own python notebook copy' BELOW)  That will avoid it getting overwritten if you download a new version of the software from Github.
 
 
 ### Example Usage
@@ -38,6 +38,23 @@ Run the example0242.ipynb notebook in the j0242 folder:
 jupyter notebook example0242.ipynb
 
 The original example.ipynb notebook can still be found in the example folder, for reference.
+
+
+### Your own python notebook copy
+
+Copy the example0242.ipynb notebook so that you can edit it without being overwritten:
+
+In the same folder in which the folder PyQSOFit is found, create a new folder. Let's say it's called MyFits (exact name doesn't matter).
+
+Copy example0242.ipynb to that folder (MyFits, in this case) and rename the notebook (to avoid confusion).  Let's say it's now called myexample.ipynb (again, exact name doesn't matter).
+
+In myexample.ipynb, change the sys.path.append lines in the first code block to :
+
+sys.path.append('../PyQSOFit')
+sys.path.append('../PyQSOFit/src')
+sys.path.append('../PyQSOFit/src/pyqsofit')
+
+Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 
 
 ### Hall Research Group Fork Changes
