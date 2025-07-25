@@ -64,11 +64,13 @@ Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 - Edited example.ipynb to work with those changes.
 - Added LMS_pyQSO_call.py to show how Lucas calls PyQSOFit.
 - Added HostDecompV2.0.0.py and PyQSOFitV2.1.6.py purely for reference.
-- Renumbered to 2.1.6.0; this fork's versions will have a 4th digit to distinguish them
+- Renumbered to 2.1.6.0; this fork's versions will have a 4th digit to distinguish them.
 
 202506:
 - Created example0242.ipynb
 
+202507:
+- Created option to use different Fe II template for J0242.
 
 ### Cite
 

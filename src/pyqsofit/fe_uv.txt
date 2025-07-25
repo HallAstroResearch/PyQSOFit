@@ -1,7 +1,8 @@
 # This is a new UV Fe template
-# [1000, 2200] use Vestergaard01 [Fe_UVtemplt_A.asc]
-# [2200, 3090] use Salvainder06, which extrapolates undernearth the MgII line;
-# The Salvainder template has a coarse wavelength sampling than Vestergaard,
+# [1000, 2200] use Vestergaard01 2001ApJS..134....1V [Fe_UVtemplt_A.asc]
+# [2200, 3090] use Salviander07, 2007ApJ...662..131S,
+#  which extrapolates undernearth the MgII line;
+# The Salviander template has a coarse wavelength sampling than Vestergaard,
 # so I interpolate it to the Vestergaard wavelength dispersion
 # [3090, 3500] use Tsuzuki06, the wavelength dispersion is similar
 # (although slightly larger) to Vestergaard
