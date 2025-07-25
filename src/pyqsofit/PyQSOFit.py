@@ -198,8 +198,8 @@ class QSOFit():
             reject_badpix=True, deredden=True, wave_range=None, wave_mask=None, 
             decompose_host=True, host_prior=False, host_prior_scale=0.2, 
             host_line_mask=True, decomp_na_mask=False, qso_type='global', 
-            npca_qso=10, host_type='PCA', npca_gal=5, Fe_uv_op=True, poly=False, 
-            BC=False, rej_abs_conti=False, rej_abs_line=False, 
+            npca_qso=10, host_type='PCA', npca_gal=5, Fe_op='', Fe_uv='',
+            poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, 
             initial_guess=None, n_pix_min_conti=100, 
             param_file_name='qsopar.fits', MC=False, MCMC=False, 
             save_fits_name=None, nburn=20, nsamp=200, nthin=10, 
@@ -299,7 +299,17 @@ class QSOFit():
             luminosity-redshift binned PCA is used, it can reproduce > 92% 
             QSOs. The binned PCA is better if have Mi information.
          
-        Fe_uv_op: bool, optional -- Default: True
+        Fe_op: str, optional -- Default: '' (null string) # PBH
+            Name of optical FeII template file to use. 
+            Null string means don't fit optical Fe II.  Currently Fe_uv & Fe_op 
+            are assumed to be either both null or both non-null.
+
+        Fe_uv: str, optional -- Default: '' (null string) # PBH
+            Name of UV FeII template file to use. 
+            Null string means don't fit UV Fe II.  Currently Fe_uv & Fe_op 
+            are assumed to be either both null or both non-null.
+
+        OBSOLETE: Fe_uv_op: bool, optional -- Default: True
             if True, fit continuum with UV and optical FeII template. 
 
         poly: bool, optional -- Default: False
@@ -527,7 +537,8 @@ class QSOFit():
         self.maxOLs = 10
         self.alpha = 0.05
         self.initial_guess = initial_guess
-        self.Fe_uv_op = Fe_uv_op
+        self.Fe_op = Fe_op
+        self.Fe_uv = Fe_uv
         self.poly = poly
         self.BC = BC
         self.rej_abs_conti = rej_abs_conti
@@ -1025,10 +1036,17 @@ class QSOFit():
         
         
         """
-        self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
+        #self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
+        if self.Fe_uv != '': # PBH: if fitting is to occur, get the filename
+          self.fe_uv = np.genfromtxt(os.path.join(self.install_path, self.Fe_uv)) # PBH
+          #print(self.Fe_uv) # PBH for testing
         if self.name=='J0242': # PBH: for J0242, model Fe II emission at >1560 Ang only
           self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uvgt1560.txt'))
-        self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
+          #print('fe_uvgt1560.txt') # PBH for testing
+        #self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
+        if self.Fe_op != '': # PBH: if fitting is to occur, get the filename
+          self.fe_op = np.genfromtxt(os.path.join(self.install_path, self.Fe_op)) # PBH
+          #print(self.Fe_op) # PBH for testing
 
         # Read line parameter file
         contilist, window_all = read_conti_params(os.path.join(self.path, self.param_file_name))
@@ -1122,7 +1140,7 @@ class QSOFit():
 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
-        if (self.Fe_uv_op == False) or (np.sum(ind_uv) <= self.n_pix_min_conti):
+        if (self.Fe_uv == '') or (np.sum(ind_uv) <= self.n_pix_min_conti):
             fit_params['Fe_uv_norm'].value = 0
             fit_params['Fe_uv_norm'].vary = False
             fit_params['Fe_uv_FWHM'].vary = False
@@ -1130,7 +1148,7 @@ class QSOFit():
 
         # Check if we will attempt to fit the optical FeII continuum region
         ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
-        if (self.Fe_uv_op == False and self.BC == False) or (np.sum(ind_opt) <= self.n_pix_min_conti):
+        if (self.Fe_op == '' and self.BC == False) or (np.sum(ind_opt) <= self.n_pix_min_conti):
             fit_params['Fe_op_norm'].value = 0
             fit_params['Fe_op_norm'].vary = False
             fit_params['Fe_op_FWHM'].vary = False
@@ -1166,35 +1184,37 @@ class QSOFit():
         """
 
         # Get continuum model ahead of time and pass it to the residuals function
-        if self.Fe_uv_op == True and self.poly == False and self.BC == False:
+        # PBH: different options below are for different parameter combinations.
+        # PBH: Currently Fe_uv & Fe_op are assumed to be either both null or both non-null.
+        if self.Fe_op != '' and self.Fe_uv != '' and self.poly == False and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6])
-        elif self.Fe_uv_op == True and self.poly == True and self.BC == False:
+        elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.F_poly_conti(xval, pp[11:])
-        elif self.Fe_uv_op == True and self.poly == False and self.BC == True:
+        elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == False and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.Balmer_conti(xval, pp[8:11])
-        elif self.Fe_uv_op == False and self.poly == True and self.BC == False:
+        elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == True and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.F_poly_conti(xval, pp[11:])
-        elif self.Fe_uv_op == False and self.poly == False and self.BC == False:
+        elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == False and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp)
-        elif self.Fe_uv_op == False and self.poly == False and self.BC == True:
+        elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == False and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Balmer_conti(xval, pp[8:11])
-        elif self.Fe_uv_op == True and self.poly == True and self.BC == True:
+        elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.F_poly_conti(xval, pp[11:]) + \
                                             self.Balmer_conti(xval, pp[8:11])
-        elif self.Fe_uv_op == False and self.poly == True and self.BC == True:
+        elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.F_poly_conti(xval, pp[11:]) + \
@@ -3245,7 +3265,7 @@ class QSOFit():
                                xval[(xval >= lower) & (xval <= upper)])
         return flux
 
-    def read_out_params(self, param_file_path='qsopar.fits'):
+    def read_out_params(self, param_file_path): # PBH changed from param_file_path='qsopar.fits'
         # read result customized parameters
         hdul = fits.open(param_file_path)
 
@@ -3297,7 +3317,7 @@ def get_err(s, margin=0.16, axis=0, default_value=-1.):
         raise IndexError('The input data only adopts 1-D or 2-D array.')
 
 
-def read_conti_params(param_file_path='qsopar.fits'):
+def read_conti_params(param_file_path): # PBH changed from param_file_path='qsopar.fits'
     # read line parameter
     hdul = fits.open(param_file_path)
 
@@ -3307,7 +3327,7 @@ def read_conti_params(param_file_path='qsopar.fits'):
     return data, conti_windows
 
 
-def read_line_params(param_file_path='qsopar.fits'):
+def read_line_params(param_file_path): # PBH changed from param_file_path='qsopar.fits'
     # read line parameter
     hdul = fits.open(param_file_path)
     data = hdul[1].data

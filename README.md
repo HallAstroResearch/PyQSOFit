@@ -71,6 +71,9 @@ Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 
 202507:
 - Created option to use different Fe II template for J0242.
+- Created version 2.1.6.1
+- Enabled renaming of parameter file to something other than qsopar.fits
+- Changed name of FeII optical and UV templates to be input parameters
 
 ### Cite
 
