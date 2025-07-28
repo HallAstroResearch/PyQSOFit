@@ -1039,6 +1039,8 @@ class QSOFit():
         #self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv.txt'))
         if self.Fe_uv != '': # PBH: if fitting is to occur, get the filename
           self.fe_uv = np.genfromtxt(os.path.join(self.install_path, self.Fe_uv)) # PBH
+        else: # PBH: give the program a file with zero Fe II amplitude when no fitting is to be done
+          self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv_blank.txt')) # PBH
           #print(self.Fe_uv) # PBH for testing
         if self.name=='J0242': # PBH: for J0242, model Fe II emission at >1560 Ang only
           self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uvgt1560.txt'))
@@ -1046,6 +1048,8 @@ class QSOFit():
         #self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
         if self.Fe_op != '': # PBH: if fitting is to occur, get the filename
           self.fe_op = np.genfromtxt(os.path.join(self.install_path, self.Fe_op)) # PBH
+        else: # PBH: give the program a file with zero Fe II amplitude when no fitting is to be done
+          self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical_blank.txt')) # PBH
           #print(self.Fe_op) # PBH for testing
 
         # Read line parameter file
@@ -1190,6 +1194,12 @@ class QSOFit():
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6])
+        elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == True:
+            _conti_model = lambda xval, pp: self.PL(xval, pp) + \
+                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
+                                            self.Fe_flux_balmer(xval, pp[3:6]) + \
+                                            self.F_poly_conti(xval, pp[11:]) + \
+                                            self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Fe_flux_mgii(xval, pp[0:3]) + \
@@ -1208,15 +1218,8 @@ class QSOFit():
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == False and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
                                             self.Balmer_conti(xval, pp[8:11])
-        elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == True:
-            _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
-                                            self.Fe_flux_balmer(xval, pp[3:6]) + \
-                                            self.F_poly_conti(xval, pp[11:]) + \
-                                            self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.F_poly_conti(xval, pp[11:]) + \
                                             self.Balmer_conti(xval, pp[8:11])
         else:
@@ -1399,7 +1402,7 @@ class QSOFit():
             # Calculate FeII flux errors
             Fe_flux_results = np.empty((len(samples), np.shape(np.ravel(self.Fe_flux_range))[0] // 2))
 
-            if self.Fe_flux_range is not None:
+            if Fe_uv_file != '' and Fe_op_file != '' and self.Fe_flux_range is not None:
                 # Samples loop
                 for k, s in enumerate(samples):
                     Fe_flux_results[k], Fe_flux_type, Fe_flux_name = \
