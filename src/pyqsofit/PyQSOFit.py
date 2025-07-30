@@ -2821,20 +2821,29 @@ class QSOFit():
                       self.Fe_flux_balmer(self.wave, pp[3:6]) + \
                       self.F_poly_conti(self.wave, pp[11:]) + \
                       self.Balmer_conti(self.wave, pp[8:11])
+        #yContiLines = yContiModel + lines_total
+        #ySpecDivContiModel = 0 # PBH
+        #ySpecDivContiLines = 0 # PBH
         #### Record ASCII of continuum fitting model
         OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
-        OutFile.write('# wave   flux   error\n')
-        # for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
-        #     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
+        OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
         for i,wav in enumerate(self.wave): #Input Wave
-            OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
+            OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
+            +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
+            +str(self.flux[i]/self.f_conti_model[i]) +' ' +str(self.err[i]/self.f_conti_model[i]) +' '  \
+            +str(self.flux[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) + ' ' \
+            +str(self.err[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) +'\n') # PBH
+            #OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
+            #OutFile.write(str(wav)+' '+str(yContiModel[i])+' '+str(yConti[i])+'\n') # PBH
             ###
             ### Line component: lines_total + f_conti_model_eval
             ### FeII component: f_conti_model_eval
-
+        # for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
+        #     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
         OutFile.close()
         print('ASCII of continuum saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+
         #### Record Parameters used for continuum fitting
         ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
         ParamFile.write(str(pp[0])+'  '+str(pp[1])+'  '+str(pp[2])+'  '+
@@ -2855,7 +2864,7 @@ class QSOFit():
         for i,wav in enumerate(xRAW):
             RAWfile.write(str(xRAW[i])+'  '+str(yRAW[i])+'  '+str(zRAW[i])+'\n')
         RAWfile.close()
-        print('QSOFit-reduced spectrum saved to:')
+        print('QSOFit-reduced spectrum (rest frame; optional badpix-fix, deredden, smooth, trim) saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
         print('')
         
