@@ -2827,6 +2827,7 @@ class QSOFit():
         #### Record ASCII of continuum fitting model
         OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
         OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
+        #OutFile.write(str(self.wave)) # numpy.ndarray # --- doesn't work
         for i,wav in enumerate(self.wave): #Input Wave
             OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
             +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
