@@ -1123,7 +1123,7 @@ class QSOFit():
                        vary=bool(contilist[4]['vary']))
         fit_params.add('Fe_op_shift', value=pp0[5], min=contilist[5]['min'], max=contilist[5]['max'],
                        vary=bool(contilist[5]['vary']))
-        # norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
+        # norm_factor for continuum f_lambda = PL_norm * (lambda/3000.0)^{PL_slope}
         fit_params.add('PL_norm', value=pp0[6], min=contilist[6]['min'], max=contilist[6]['max'],
                        vary=bool(contilist[6]['vary']))
         # slope for the power-law continuum
@@ -1181,8 +1181,8 @@ class QSOFit():
          pp[1]:     FWHM for the MgII Fe_template
          pp[2]:     small shift of wavelength for the MgII Fe template
          pp[3:5]:   same as pp[0:2] but for the Hbeta/Halpha Fe template
-         pp[6]:     norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-         pp[7]:     slope for the power-law continuum
+         pp[6]:     (PL_norm) norm_factor for continuum f_lambda = PL_norm * (lambda/3000.0)^{PL_slope}
+         pp[7]:     (PL_slope) slope for the power-law continuum
          pp[8:10]:  norm, Te and Tau_e for the Balmer continuum at <3646 A
          pp[11:13]: polynomial for the continuum
         """
@@ -1402,7 +1402,7 @@ class QSOFit():
             # Calculate FeII flux errors
             Fe_flux_results = np.empty((len(samples), np.shape(np.ravel(self.Fe_flux_range))[0] // 2))
 
-            if Fe_uv_file != '' and Fe_op_file != '' and self.Fe_flux_range is not None:
+            if self.Fe_uv != '' and self.Fe_op != '' and self.Fe_flux_range is not None:
                 # Samples loop
                 for k, s in enumerate(samples):
                     Fe_flux_results[k], Fe_flux_type, Fe_flux_name = \
@@ -2805,12 +2805,12 @@ class QSOFit():
         if self.verbose:
             print('')
             #print('len(self.wave_prereduced) = ',len(self.wave_prereduced))
-            print('len(self.wave) = ',len(self.wave))
+            # print('len(self.wave) = ',len(self.wave))
             #print('len(yContiWE) = ',len(yContiWE))
             #print('len(yConti) = ',len(yConti))
             #print('len(self.lam) = ',len(self.lam))
-            print('len(self.flux) = ',len(self.flux))
-            print('len(self.err) =',len(self.err))
+            # print('len(self.flux) = ',len(self.flux))
+            # print('len(self.err) =',len(self.err))
             #print('len(self.line_flux) = ',len(self.line_flux))
             print('')
         
@@ -2826,23 +2826,31 @@ class QSOFit():
         #ySpecDivContiModel = 0 # PBH
         #ySpecDivContiLines = 0 # PBH
         #### Record ASCII of continuum fitting model
-        OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
-        OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
-        #OutFile.write(str(self.wave)) # numpy.ndarray # --- doesn't work
-        for i,wav in enumerate(self.wave): #Input Wave
-            OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
-            +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
-            +str(self.flux[i]/self.f_conti_model[i]) +' ' +str(self.err[i]/self.f_conti_model[i]) +' '  \
-            +str(self.flux[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) + ' ' \
-            +str(self.err[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) +'\n') # PBH
-            #OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
-            #OutFile.write(str(wav)+' '+str(yContiModel[i])+' '+str(yConti[i])+'\n') # PBH
-            ###
-            ### Line component: lines_total + f_conti_model_eval
-            ### FeII component: f_conti_model_eval
-        # for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
-        #     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
-        OutFile.close()
+        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        # stack numpy.ndarrays and transpose prior to text file output
+        OutFileArray = np.vstack(( self.wave, self.f_conti_model, \
+        self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model, \
+        self.flux/self.f_conti_model, self.err/self.f_conti_model, \
+        self.flux/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
+        self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
+        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines flux/Mod_C err/Mod_C flux/Mod_C+L err/Mod_C+L')
+        ## old method
+        #OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
+        #OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
+        #for i,wav in enumerate(self.wave): #Input Wave
+        #    OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
+        #    +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
+        #    +str(self.flux[i]/self.f_conti_model[i]) +' ' +str(self.err[i]/self.f_conti_model[i]) +' '  \
+        #    +str(self.flux[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) + ' ' \
+        #    +str(self.err[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) +'\n') # PBH
+        #    #OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
+        #    #OutFile.write(str(wav)+' '+str(yContiModel[i])+' '+str(yConti[i])+'\n') # PBH
+        #    ###
+        #    ### Line component: lines_total + f_conti_model_eval
+        #    ### FeII component: f_conti_model_eval
+        ## for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
+        ##     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
+        #OutFile.close()
         print('ASCII of continuum saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
 
@@ -2856,7 +2864,19 @@ class QSOFit():
         ParamFile.close()
         print('Parameters used for continuum fitting saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
-        
+       
+        """
+        Continuum components described by 14 parameters
+         pp[0]:     norm_factor for the MgII Fe_template
+         pp[1]:     FWHM for the MgII Fe_template
+         pp[2]:     small shift of wavelength for the MgII Fe template
+         pp[3:5]:   same as pp[0:2] but for the Hbeta/Halpha Fe template
+         pp[6]:     (PL_norm) norm_factor for continuum f_lambda = PL_norm * (lambda/3000.0)^{PL_slope}
+         pp[7]:     (PL_slope) slope for the power-law continuum
+         pp[8:10]:  norm, Te and Tau_e for the Balmer continuum at <3646 A
+         pp[11:13]: polynomial for the continuum
+        """
+ 
         #### Record ASCII of reduced spectrum
         xRAW = self.wave_prereduced
         yRAW = self.flux_prereduced
@@ -2870,19 +2890,6 @@ class QSOFit():
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
         print('')
         
-        """
-        Continuum components described by 14 parameters
-         pp[0]:     norm_factor for the MgII Fe_template
-         pp[1]:     FWHM for the MgII Fe_template
-         pp[2]:     small shift of wavelength for the MgII Fe template
-         pp[3:5]:   same as pp[0:2] but for the Hbeta/Halpha Fe template
-         pp[6]:     norm_factor for continuum f_lambda = (lambda/3000.0)^{-alpha}
-         pp[7]:     slope for the power-law continuum
-         pp[8:10]:  norm, Te and Tau_e for the Balmer continuum at <3646 A
-         pp[11:13]: polynomial for the continuum
-        """
-        
-
 
         # Axis limits
         if self.linefit == True:
@@ -2956,6 +2963,7 @@ class QSOFit():
                     ax.text(line_cen[ll]+7, 0.9*ylims[1], line_name[ll], rotation=90, fontsize=10, va='top')
                     # print('points_data[1] =',points_data[1])
 
+        print(self.wave.min(), self.wave.max()) # PBH
         xlims = [self.wave.min(), self.wave.max()]  #Limits dependent on input waverange
         # xlims = [min(wave_eval), max(wave_eval)]    #Limits dependent on Fit data set
         ax.set_xlim(xlims[0],xlims[1]); # print('xlims =',xlims)
@@ -2970,8 +2978,8 @@ class QSOFit():
             ax.set_xscale('log') # Set x-scale to logarithimic
             ax.set_yscale('log') # Set y-scale to logarithimic
         
-        # rest-frame x-axis minor ticks ... have to figure out how to adjust for dift rest frame coverage
-        minor_ticks=np.arange(1100,3500,100)
+        # rest-frame x-axis minor ticks ... pad short & long wavelengths to nearest 100 Ang 
+        minor_ticks=np.arange(np.floor(xlims[0]/100.).astype(int)*100,100+np.ceil(xlims[1]/100.).astype(int)*100,100)
         ax.set_xticks(minor_ticks, minor=True)
         ax.xaxis.set_minor_formatter(FormatStrFormatter('%5d'))
 
