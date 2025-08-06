@@ -2727,7 +2727,8 @@ class QSOFit():
                 ra1 = np.round(self.ra, 4)
                 dec1 = np.round(self.dec, 4)
                 z1 = np.round(float(self.z), 4)
-                ax.set_title(f'(ra,dec) = ({ra1},{dec1})   {self.sdss_name}   z = {z1}', fontsize=20)
+                #ax.set_title(f'(ra,dec) = ({ra1},{dec1})   {self.sdss_name}   z = {z1}', fontsize=20)
+                ax.set_title(f'{self.sdss_name}   epoch = {self.epoch}   MJD = {np.round(self.mjd)}   z = {z1}', fontsize=20)
 
         # Host decomposition
         if self.decompose_host == True and self.decomposed == True:
