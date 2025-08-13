@@ -2825,34 +2825,24 @@ class QSOFit():
         #yContiLines = yContiModel + lines_total
         #ySpecDivContiModel = 0 # PBH
         #ySpecDivContiLines = 0 # PBH
-        #### Record ASCII of continuum fitting model
-        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        #### PBH: Record ASCII including continuum fitting model, flux/model, flux-model, etc
+        #        1       2           3         4         5           6           7         8           9
+        # rest_wav Mod_Con Mod_C+Lines flx/Mod_C err/Mod_C flx/Mod_C+L err/Mod_C+L flx-Mod_C flx-Mod_C+L
+        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_ASCII.dat')
         # stack numpy.ndarrays and transpose prior to text file output
         OutFileArray = np.vstack(( self.wave, self.f_conti_model, \
         self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model, \
         self.flux/self.f_conti_model, self.err/self.f_conti_model, \
         self.flux/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
-        self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
-        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines flux/Mod_C err/Mod_C flux/Mod_C+L err/Mod_C+L')
+        self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
+        self.flux-self.f_conti_model, \
+        self.flux-(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
+        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines flux/Mod_C err/Mod_C flux/Mod_C+L err/Mod_C+L flux-Mod_C flux-Mod_C+L')
         ## old method
-        #OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
-        #OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
-        #for i,wav in enumerate(self.wave): #Input Wave
-        #    OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
-        #    +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
-        #    +str(self.flux[i]/self.f_conti_model[i]) +' ' +str(self.err[i]/self.f_conti_model[i]) +' '  \
-        #    +str(self.flux[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) + ' ' \
-        #    +str(self.err[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) +'\n') # PBH
-        #    #OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
-        #    #OutFile.write(str(wav)+' '+str(yContiModel[i])+' '+str(yConti[i])+'\n') # PBH
-        #    ###
         #    ### Line component: lines_total + f_conti_model_eval
         #    ### FeII component: f_conti_model_eval
-        ## for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
-        ##     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
-        #OutFile.close()
-        print('ASCII of continuum saved to:')
-        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        print('ASCII of continuum saved to: ') 
+        print(os.path.abspath(OutFile))
 
         #### Record Parameters used for continuum fitting
         ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
