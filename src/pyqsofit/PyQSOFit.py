@@ -2825,9 +2825,9 @@ class QSOFit():
         #yContiLines = yContiModel + lines_total
         #ySpecDivContiModel = 0 # PBH
         #ySpecDivContiLines = 0 # PBH
-        #### PBH: Record ASCII including continuum fitting model, flux/model, flux-model, etc
-        #        1       2           3         4         5           6           7         8           9
-        # rest_wav Mod_Con Mod_C+Lines flx/Mod_C err/Mod_C flx/Mod_C+L err/Mod_C+L flx-Mod_C flx-Mod_C+L
+        #### PBH: Record ASCII incl. continuum, continuum+lines, flux / or - both, etc, with columns:
+        #        1       2           3        4        5          6          7        8          9
+        # rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
         OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_ASCII.dat')
         # stack numpy.ndarrays and transpose prior to text file output
         OutFileArray = np.vstack(( self.wave, self.f_conti_model, \
@@ -2837,7 +2837,7 @@ class QSOFit():
         self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
         self.flux-self.f_conti_model, \
         self.flux-(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
-        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines flux/Mod_C err/Mod_C flux/Mod_C+L err/Mod_C+L flux-Mod_C flux-Mod_C+L')
+        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L')
         ## old method
         #    ### Line component: lines_total + f_conti_model_eval
         #    ### FeII component: f_conti_model_eval
