@@ -409,7 +409,7 @@ class QSOFit():
             the observed wavelength, some pixels removed.
             
         .wave: array
-            the rest wavelength, some pixels removed.
+            the rest wavelength, some pixels removed. 
 
         .flux: array
             the rest flux, some pixels removed. Dereddened and *(1+z) flux.  
@@ -599,7 +599,9 @@ class QSOFit():
 
         dustmap_path = os.path.join(self.install_path, 'sfddata')
 
-        # Clean the data
+        # Clean the data 
+        # PBH: consider moving self._OriginalSpec here to produce true self.wave/flux/err_prereduced 
+        # PBH: consider interpolating over pixels where IVAR=0, or excising if at start/end of spectrum
 
         # Remove with error equal to 0 or inifity
         ### LMS: Change err=99 to err=0, so code recognizes bad pixels
@@ -2096,10 +2098,9 @@ class QSOFit():
     def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission 
-        lines, e.g., FWHM, sigma, peak, line flux. The compcenter is the 
-        theortical vacuum wavelength for the broad compoenet.
-        compcenter:
-        pp:
+        lines, e.g., FWHM, sigma, peak, line flux. 
+        compcenter:   theoretical vacuum wavelength for the broad component.
+        pp:           seems to be output array of line properties
         linetype:     'broad' or 'narrow'
         ln_sigma_br:  line sigma separating broad and narrow lines (AA??)
         ln_sigma_max: Max sigma to consider in the calculation (used to 
@@ -2131,7 +2132,7 @@ class QSOFit():
         # assume nothing about the order of the lines
         pp_br = pp[ind_br]
 
-        c = const.c.to(u.km / u.s).value  # km/s
+        c = const.c.to(u.km / u.s).value  # speed of light in km/s
         ngauss = len(pp_br) // 3
 
         pp_shaped = pp.reshape([len(pp) // 3, 3])
@@ -2177,6 +2178,10 @@ class QSOFit():
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
                 fwhm = abs(np.exp(fwhm_left) - np.exp(fwhm_right)) / compcenter * c
+                # PBH: above comes from dlam/lam = v/c thus v = (dlam/lam)*c
+                ## print('spline.roots=',spline.roots())
+                # print('fwhm=',fwhm, 'max=',np.max(yy_br))
+                # print('fwhm_left=',np.exp(fwhm_left), 'fwhm_right=',np.exp(fwhm_right), 'compcenter=',compcenter, 'c=',c)
 
                 # Calculate the line sigma and EW in normal wavelength
                 line_flux = self._Manygauss(xx, pp_br_shaped)

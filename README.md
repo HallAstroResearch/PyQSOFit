@@ -59,7 +59,7 @@ Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 
 ### Hall Research Group Fork Changes
 
-20250513:
+202505:
 - Incorporated LMS (Lucas M. Seaton) changes to PyQSOFit.py.
 - Edited example.ipynb to work with those changes.
 - Added LMS_pyQSO_call.py to show how Lucas calls PyQSOFit.
@@ -74,6 +74,9 @@ Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 - Created version 2.1.6.1
 - Enabled renaming of parameter file to something other than qsopar.fits
 - Changed name of FeII optical and UV templates to be input parameters
+
+To Do:
+- investigate negative polynomials
 
 ### Cite
 
