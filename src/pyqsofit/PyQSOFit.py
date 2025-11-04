@@ -200,8 +200,8 @@ class QSOFit():
             host_line_mask=True, decomp_na_mask=False, qso_type='global', 
             npca_qso=10, host_type='PCA', npca_gal=5, Fe_op='', Fe_uv='',
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, 
-            initial_guess=None, n_pix_min_conti=100, 
-            param_file_name='qsopar.fits', MC=False, MCMC=False, 
+            initial_guess=None, n_pix_min_conti=100, MC=False, MCMC=False, 
+            param_file_name='qsopar.fits', # PBH will be reset below
             save_fits_name=None, nburn=20, nsamp=200, nthin=10, 
             epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True,
             save_fits_path='.', save_fig=True, plot_corner=True, verbose=False, 
@@ -2224,6 +2224,9 @@ class QSOFit():
 
         t = Table(self.all_result, names=(self.all_result_name), dtype=self.all_result_type)
         t.write(os.path.join(save_fits_path, save_fits_name + '.fits'), format='fits', overwrite=True)
+        print('')
+        print('Fitting results saved in FITS format in: ')
+        print(os.path.abspath(os.path.join(save_fits_path, save_fits_name + '.fits')))
         return
 
     def set_mpl_style(fsize=15, tsize=18, tdir='in', major=5.0, minor=3.0, lwidth=1.8, lhandle=2.0):
@@ -2846,8 +2849,11 @@ class QSOFit():
         ## old method
         #    ### Line component: lines_total + f_conti_model_eval
         #    ### FeII component: f_conti_model_eval
-        print('ASCII of continuum saved to: ') 
+        print('ASCII CSV file of continuum fits, spectra/fits, and spectra-fits saved to: ') 
         print(os.path.abspath(OutFile))
+        print('Columns as follows (Mod_C = continuum model; Mod_C+L = continuum+lines model): ') 
+        print('       1       2           3        4        5          6          7        8          9')
+        print('rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L') 
 
         #### Record Parameters used for continuum fitting
         ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
