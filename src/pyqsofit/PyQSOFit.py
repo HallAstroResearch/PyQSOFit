@@ -2226,6 +2226,7 @@ class QSOFit():
         t.write(os.path.join(save_fits_path, save_fits_name + '.fits'), format='fits', overwrite=True)
         print('')
         print('Fitting results saved in FITS format in: ')
+        #print(os.path.join(save_fits_path, save_fits_name + '.fits'))
         print(os.path.abspath(os.path.join(save_fits_path, save_fits_name + '.fits')))
         return
 
@@ -2811,7 +2812,7 @@ class QSOFit():
         yContiWE = self.PL(wave_eval, pp)+self.F_poly_conti(wave_eval, pp[11:])
         yConti = self.PL(self.wave, pp)+self.F_poly_conti(self.wave, pp[11:])
         if self.verbose:
-            print('')
+            #print('')
             #print('len(self.wave_prereduced) = ',len(self.wave_prereduced))
             # print('len(self.wave) = ',len(self.wave))
             #print('len(yContiWE) = ',len(yContiWE))
@@ -2863,6 +2864,7 @@ class QSOFit():
                         str(pp[9])+'  '+str(pp[10])+'  '+str(pp[11])+'  '+
                         str(pp[12])+'  '+str(pp[13]))
         ParamFile.close()
+        print('')
         print('Parameters used for continuum fitting saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
        
@@ -2964,7 +2966,7 @@ class QSOFit():
                     ax.text(line_cen[ll]+7, 0.9*ylims[1], line_name[ll], rotation=90, fontsize=10, va='top')
                     # print('points_data[1] =',points_data[1])
 
-        print(self.wave.min(), self.wave.max()) # PBH
+        print('Min, max wavelengths = ', self.wave.min(), self.wave.max()) # PBH
         xlims = [self.wave.min(), self.wave.max()]  #Limits dependent on input waverange
         # xlims = [min(wave_eval), max(wave_eval)]    #Limits dependent on Fit data set
         ax.set_xlim(xlims[0],xlims[1]); # print('xlims =',xlims)
