@@ -200,8 +200,8 @@ class QSOFit():
             host_line_mask=True, decomp_na_mask=False, qso_type='global', 
             npca_qso=10, host_type='PCA', npca_gal=5, Fe_op='', Fe_uv='',
             poly=False, BC=False, rej_abs_conti=False, rej_abs_line=False, 
-            initial_guess=None, n_pix_min_conti=100, 
-            param_file_name='qsopar.fits', MC=False, MCMC=False, 
+            initial_guess=None, n_pix_min_conti=100, MC=False, MCMC=False, 
+            param_file_name='qsopar.fits', # PBH will be reset below
             save_fits_name=None, nburn=20, nsamp=200, nthin=10, 
             epsilon_jitter=0., linefit=True, save_result=True, plot_fig=True,
             save_fits_path='.', save_fig=True, plot_corner=True, verbose=False, 
@@ -409,7 +409,7 @@ class QSOFit():
             the observed wavelength, some pixels removed.
             
         .wave: array
-            the rest wavelength, some pixels removed.
+            the rest wavelength, some pixels removed. 
 
         .flux: array
             the rest flux, some pixels removed. Dereddened and *(1+z) flux.  
@@ -599,7 +599,9 @@ class QSOFit():
 
         dustmap_path = os.path.join(self.install_path, 'sfddata')
 
-        # Clean the data
+        # Clean the data 
+        # PBH: consider moving self._OriginalSpec here to produce true self.wave/flux/err_prereduced 
+        # PBH: consider interpolating over pixels where IVAR=0, or excising if at start/end of spectrum
 
         # Remove with error equal to 0 or inifity
         ### LMS: Change err=99 to err=0, so code recognizes bad pixels
@@ -2096,10 +2098,9 @@ class QSOFit():
     def line_prop(self, compcenter, pp, linetype='broad', ln_sigma_br=0.0017):
         """
         Calculate the further results for the broad component in emission 
-        lines, e.g., FWHM, sigma, peak, line flux. The compcenter is the 
-        theortical vacuum wavelength for the broad compoenet.
-        compcenter:
-        pp:
+        lines, e.g., FWHM, sigma, peak, line flux. 
+        compcenter:   theoretical vacuum wavelength for the broad component.
+        pp:           seems to be output array of line properties
         linetype:     'broad' or 'narrow'
         ln_sigma_br:  line sigma separating broad and narrow lines (AA??)
         ln_sigma_max: Max sigma to consider in the calculation (used to 
@@ -2131,7 +2132,7 @@ class QSOFit():
         # assume nothing about the order of the lines
         pp_br = pp[ind_br]
 
-        c = const.c.to(u.km / u.s).value  # km/s
+        c = const.c.to(u.km / u.s).value  # speed of light in km/s
         ngauss = len(pp_br) // 3
 
         pp_shaped = pp.reshape([len(pp) // 3, 3])
@@ -2177,6 +2178,10 @@ class QSOFit():
             if len(spline.roots()) > 0:
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
                 fwhm = abs(np.exp(fwhm_left) - np.exp(fwhm_right)) / compcenter * c
+                # PBH: above comes from dlam/lam = v/c thus v = (dlam/lam)*c
+                ## print('spline.roots=',spline.roots())
+                # print('fwhm=',fwhm, 'max=',np.max(yy_br))
+                # print('fwhm_left=',np.exp(fwhm_left), 'fwhm_right=',np.exp(fwhm_right), 'compcenter=',compcenter, 'c=',c)
 
                 # Calculate the line sigma and EW in normal wavelength
                 line_flux = self._Manygauss(xx, pp_br_shaped)
@@ -2219,6 +2224,10 @@ class QSOFit():
 
         t = Table(self.all_result, names=(self.all_result_name), dtype=self.all_result_type)
         t.write(os.path.join(save_fits_path, save_fits_name + '.fits'), format='fits', overwrite=True)
+        print('')
+        print('Fitting results saved in FITS format in: ')
+        #print(os.path.join(save_fits_path, save_fits_name + '.fits'))
+        print(os.path.abspath(os.path.join(save_fits_path, save_fits_name + '.fits')))
         return
 
     def set_mpl_style(fsize=15, tsize=18, tdir='in', major=5.0, minor=3.0, lwidth=1.8, lhandle=2.0):
@@ -2803,7 +2812,7 @@ class QSOFit():
         yContiWE = self.PL(wave_eval, pp)+self.F_poly_conti(wave_eval, pp[11:])
         yConti = self.PL(self.wave, pp)+self.F_poly_conti(self.wave, pp[11:])
         if self.verbose:
-            print('')
+            #print('')
             #print('len(self.wave_prereduced) = ',len(self.wave_prereduced))
             # print('len(self.wave) = ',len(self.wave))
             #print('len(yContiWE) = ',len(yContiWE))
@@ -2825,34 +2834,27 @@ class QSOFit():
         #yContiLines = yContiModel + lines_total
         #ySpecDivContiModel = 0 # PBH
         #ySpecDivContiLines = 0 # PBH
-        #### Record ASCII of continuum fitting model
-        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        #### PBH: Record ASCII incl. continuum, continuum+lines, flux / or - both, etc, with columns:
+        #        1       2           3        4        5          6          7        8          9
+        # rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
+        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_ASCII.dat')
         # stack numpy.ndarrays and transpose prior to text file output
         OutFileArray = np.vstack(( self.wave, self.f_conti_model, \
         self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model, \
         self.flux/self.f_conti_model, self.err/self.f_conti_model, \
         self.flux/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
-        self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
-        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines flux/Mod_C err/Mod_C flux/Mod_C+L err/Mod_C+L')
+        self.err/(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model), \
+        self.flux-self.f_conti_model, \
+        self.flux-(self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model) )).T
+        np.savetxt(OutFile, OutFileArray, delimiter=',', fmt='%f', header='rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L')
         ## old method
-        #OutFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat'),'w')
-        #OutFile.write('# rest_wavelength Model_Continuum Model_Continuum+Lines flux/Model_Continuum error/Model_Continuum flux/(Model_C+L) error/(Model_C+L)\n')
-        #for i,wav in enumerate(self.wave): #Input Wave
-        #    OutFile.write(str(wav)+' ' +str(self.f_conti_model[i]) +' ' \
-        #    +str(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i]) +' ' \
-        #    +str(self.flux[i]/self.f_conti_model[i]) +' ' +str(self.err[i]/self.f_conti_model[i]) +' '  \
-        #    +str(self.flux[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) + ' ' \
-        #    +str(self.err[i]/(self.Manygauss(np.log(self.wave), self.gauss_result)[i] + self.f_conti_model[i])) +'\n') # PBH
-        #    #OutFile.write(str(wav)+'  '+str(yConti[i])+'  '+str(self.err[i])+'\n') 
-        #    #OutFile.write(str(wav)+' '+str(yContiModel[i])+' '+str(yConti[i])+'\n') # PBH
-        #    ###
         #    ### Line component: lines_total + f_conti_model_eval
         #    ### FeII component: f_conti_model_eval
-        ## for i,wav in enumerate(wave_eval): #Wave_EVAL: Causes problems in J2318Notes.py
-        ##     OutFile.write(str(wav)+'  '+str(yContiWE[i])+'  '+str(self.err[i])+'\n')
-        #OutFile.close()
-        print('ASCII of continuum saved to:')
-        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_RLF1Fix.dat')
+        print('ASCII CSV file of continuum fits, spectra/fits, and spectra-fits saved to: ') 
+        print(os.path.abspath(OutFile))
+        print('Columns as follows (Mod_C = continuum model; Mod_C+L = continuum+lines model): ') 
+        print('       1       2           3        4        5          6          7        8          9')
+        print('rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L') 
 
         #### Record Parameters used for continuum fitting
         ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
@@ -2862,6 +2864,7 @@ class QSOFit():
                         str(pp[9])+'  '+str(pp[10])+'  '+str(pp[11])+'  '+
                         str(pp[12])+'  '+str(pp[13]))
         ParamFile.close()
+        print('')
         print('Parameters used for continuum fitting saved to:')
         print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
        
@@ -2963,7 +2966,7 @@ class QSOFit():
                     ax.text(line_cen[ll]+7, 0.9*ylims[1], line_name[ll], rotation=90, fontsize=10, va='top')
                     # print('points_data[1] =',points_data[1])
 
-        print(self.wave.min(), self.wave.max()) # PBH
+        print('Min, max wavelengths = ', self.wave.min(), self.wave.max()) # PBH
         xlims = [self.wave.min(), self.wave.max()]  #Limits dependent on input waverange
         # xlims = [min(wave_eval), max(wave_eval)]    #Limits dependent on Fit data set
         ax.set_xlim(xlims[0],xlims[1]); # print('xlims =',xlims)
