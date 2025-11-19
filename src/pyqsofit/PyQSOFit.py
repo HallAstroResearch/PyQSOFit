@@ -3051,8 +3051,8 @@ class QSOFit():
         return y_smooth
 
     def Fe_flux_mgii(self, xval, pp):
-        "PBHFe2: J0002: adjust this to a 2-Gaussian kernel using Fe_Balmer params"
-        "Fit the UV FeII component on the continuum from 1200 to 3500 A based on Boroson & Green 1992."
+        "PBHFe2: added option for a 2-Gaussian kernel."
+        "Fit the UV FeII component from 1200 to 3500 A based on Vestergaard & Wilkes 2001."
         #print(pp)
         yval = np.zeros_like(xval)
         wave_Fe_mgii = 10 ** self.fe_uv[:, 0]
@@ -3070,7 +3070,7 @@ class QSOFit():
             else:
                 sig_conv = np.sqrt(Fe_FWHM**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
             # Get sigma in pixel space
-            sig_pix = sig_conv / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
+            sig_pix = sig_conv / 106.3  # 106.3 km/s is the dispersion for the UV FeII template
             #khalfsz = np.round(4 * sig_pix + 1, 0)
             khalfsz = np.round(4 * sig_pix + 2 * np.abs(Fe_shift2)/106.3 + 1, 0) # PBHFe2
             xx = np.arange(0, khalfsz * 2, 1) - khalfsz
@@ -3084,9 +3084,9 @@ class QSOFit():
                 else:
                     sig_conv2 = np.sqrt(Fe_FWHM2**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
                 # Get sigma in pixel space
-                sig_pix2 = sig_conv2 / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
+                sig_pix2 = sig_conv2 / 106.3  # 106.3 km/s is the dispersion for the UV FeII template
                 # Get shift in pixel space
-                shift_pix = Fe_shift2 / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
+                shift_pix = Fe_shift2 / 106.3  # 106.3 km/s is the dispersion for the UV FeII template
                 # Add 2nd Gaussian, scaled and shifted appropriately [zero when xx=shift_pix which is <0
                 kernel = kernel + pp[14]*np.exp(-(xx-shift_pix) ** 2 / (2 * sig_pix2 ** 2))
 
