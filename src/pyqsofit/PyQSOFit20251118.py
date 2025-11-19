@@ -673,10 +673,10 @@ class QSOFit():
         """
         Fit the continuum
         """
-        # print('676: len(self.wave) =',len(self.wave))
+        # print('653: len(self.wave) =',len(self.wave))
         self.fit_continuum(self.wave, self.flux, self.err, self.ra, self.dec, 
                            self.plateid, self.mjd, self.fiberid)
-        # print('679: len(self.wave) =',len(self.wave))
+        # print('656: len(self.wave) =',len(self.wave))
 
         """
         Fit the emission lines
@@ -1143,14 +1143,6 @@ class QSOFit():
         fit_params.add('conti_a_0', value=pp0[11], min=None, max=None, vary=bool(contilist[11]['vary']))
         fit_params.add('conti_a_1', value=pp0[12], min=None, max=None, vary=bool(contilist[12]['vary']))
         fit_params.add('conti_a_2', value=pp0[13], min=None, max=None, vary=bool(contilist[13]['vary']))
-        # PBHFe2: additional norm_factor, FWHM, and shift for 2nd Gaussian for the MgII Fe_template
-        # PBHFe2: need to add lines to cell 2B of ipython notebook
-        fit_params.add('Fe_uv_norm2', value=pp0[14], min=contilist[14]['min'], max=contilist[14]['max'],
-                       vary=bool(contilist[14]['vary']))
-        fit_params.add('Fe_uv_FWHM2', value=pp0[15], min=contilist[15]['min'], max=contilist[15]['max'],
-                       vary=bool(contilist[15]['vary']))
-        fit_params.add('Fe_uv_shift2', value=pp0[16], min=contilist[16]['min'], max=contilist[16]['max'],
-                       vary=bool(contilist[16]['vary']))
 
         # Check if we will attempt to fit the UV FeII continuum region
         ind_uv = np.where((wave[tmp_all] > 1200) & (wave[tmp_all] < 3500), True, False)
@@ -1159,10 +1151,6 @@ class QSOFit():
             fit_params['Fe_uv_norm'].vary = False
             fit_params['Fe_uv_FWHM'].vary = False
             fit_params['Fe_uv_shift'].vary = False
-            fit_params['Fe_uv_norm2'].value = 0
-            fit_params['Fe_uv_norm2'].vary = False
-            fit_params['Fe_uv_FWHM2'].vary = False
-            fit_params['Fe_uv_shift2'].vary = False
 
         # Check if we will attempt to fit the optical FeII continuum region
         ind_opt = np.where((wave[tmp_all] > 3686.) & (wave[tmp_all] < 7484.), True, False)
@@ -1199,36 +1187,34 @@ class QSOFit():
          pp[7]:     (PL_slope) slope for the power-law continuum
          pp[8:10]:  norm, Te and Tau_e for the Balmer continuum at <3646 A
          pp[11:13]: polynomial for the continuum
-         pp[14:16]: 2nd norm_factor, FWHM, shift for 2nd component for MgII Fe_template
         """
 
         # Get continuum model ahead of time and pass it to the residuals function
         # PBH: different options below are for different parameter combinations.
         # PBH: Currently Fe_uv & Fe_op are assumed to be either both null or both non-null.
-        # PBHFe2: changed self.Fe_flux_mgii(xval, pp[0:3]) to self.Fe_flux_mgii(xval, pp[0:])
         if self.Fe_op != '' and self.Fe_uv != '' and self.poly == False and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_mgii(xval, pp[0:]) + \
+                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6])
         elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_mgii(xval, pp[0:]) + \
+                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
-                                            self.F_poly_conti(xval, pp[11:14]) + \
+                                            self.F_poly_conti(xval, pp[11:]) + \
                                             self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == True and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_mgii(xval, pp[0:]) + \
+                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
-                                            self.F_poly_conti(xval, pp[11:14])
+                                            self.F_poly_conti(xval, pp[11:])
         elif self.Fe_op != '' and self.Fe_uv != '' and self.poly == False and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.Fe_flux_mgii(xval, pp[0:]) + \
+                                            self.Fe_flux_mgii(xval, pp[0:3]) + \
                                             self.Fe_flux_balmer(xval, pp[3:6]) + \
                                             self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == True and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.F_poly_conti(xval, pp[11:14])
+                                            self.F_poly_conti(xval, pp[11:])
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == False and self.BC == False:
             _conti_model = lambda xval, pp: self.PL(xval, pp)
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == False and self.BC == True:
@@ -1236,7 +1222,7 @@ class QSOFit():
                                             self.Balmer_conti(xval, pp[8:11])
         elif self.Fe_op == '' and self.Fe_uv == '' and self.poly == True and self.BC == True:
             _conti_model = lambda xval, pp: self.PL(xval, pp) + \
-                                            self.F_poly_conti(xval, pp[11:14]) + \
+                                            self.F_poly_conti(xval, pp[11:]) + \
                                             self.Balmer_conti(xval, pp[8:11])
         else:
             raise RuntimeError('Invalid options for continuum model!')
@@ -1265,13 +1251,12 @@ class QSOFit():
         params_dict = conti_fit.params.valuesdict()
         par_names = list(params_dict.keys())
         params = list(params_dict.values())
-        #print(params)
 
         # Calculate the continuum fit and mask the absorption lines before re-fitting
         if self.rej_abs_conti == True:
             if self.poly == True:
                 tmp_conti = self.PL(wave[tmp_all], params) + \
-                            self.F_poly_conti(wave[tmp_all], params[11:14])
+                            self.F_poly_conti(wave[tmp_all], params[11:])
             else:
                 tmp_conti = self.PL(wave[tmp_all], params)
 
@@ -1288,8 +1273,6 @@ class QSOFit():
             #                            err[tmp_all][ind_noBAL], _conti_model),
             #                      calc_covar=False, xtol=self.xtol_conti, ftol=self.ftol_conti)
             # LMS: Use Lyman Correction of flux and errors
-            #print(ind_noBAL) # PBHFe2
-            #print(FITflux[ind_noBAL]) # PBHFe2
             conti_fit = minimize(self._residuals, fit_params,
                                  args=(wave[tmp_all][ind_noBAL],
                                        self.Smooth(FITflux[ind_noBAL], 10),  # XXX Why smooth here?
@@ -1425,7 +1408,7 @@ class QSOFit():
                 # Samples loop
                 for k, s in enumerate(samples):
                     Fe_flux_results[k], Fe_flux_type, Fe_flux_name = \
-                        self.Get_Fe_flux(self.Fe_flux_range, s) # s[:6]) # PBHFe2
+                        self.Get_Fe_flux(self.Fe_flux_range, s[:6])
 
                 Fe_flux_std = get_err(Fe_flux_results)
             else:
@@ -1436,7 +1419,7 @@ class QSOFit():
             L = self._L_conti(wave, params, self.L_conti_wave)
 
             # Calculate FeII flux
-            Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params) # params[:6]) # PBHFe2
+            Fe_flux_result, Fe_flux_type, Fe_flux_name = self.Get_Fe_flux(self.Fe_flux_range, params[:6])
 
             """
             Save the results
@@ -1482,7 +1465,7 @@ class QSOFit():
 
             # Calculate FeII flux
             Fe_flux_result, Fe_flux_type, Fe_flux_name = \
-                self.Get_Fe_flux(self.Fe_flux_range, params) #params[:6]) # PBHFe2
+                self.Get_Fe_flux(self.Fe_flux_range, params[:6])
 
             """
             Save the results
@@ -1517,11 +1500,11 @@ class QSOFit():
         self.tmp_all = tmp_all
 
         # Save individual models
-        self.f_fe_mgii_model = self.Fe_flux_mgii(wave, params[0:]) # PBHFe2
+        self.f_fe_mgii_model = self.Fe_flux_mgii(wave, params[0:3])
         self.f_fe_balmer_model = self.Fe_flux_balmer(wave, params[3:6])
         self.f_pl_model = self.PL(wave, params)
         self.f_bc_model = self.Balmer_conti(wave, params[8:11])
-        self.f_poly_model = self.F_poly_conti(wave, params[11:14])
+        self.f_poly_model = self.F_poly_conti(wave, params[11:])
         self.f_conti_model = self.f_pl_model + self.f_fe_mgii_model + \
                              self.f_fe_balmer_model + self.f_poly_model + \
                              self.f_bc_model
@@ -1538,7 +1521,7 @@ class QSOFit():
         waves = np.array(waves)
         L = np.full(len(waves), -1.0)  # to save the luminosity results
         valid_idx = np.where((waves < np.max(wave)) & (waves > np.min(wave)), True, False)
-        conti_flux = self.PL(waves[valid_idx], pp) + self.F_poly_conti(waves[valid_idx], pp[11:14])
+        conti_flux = self.PL(waves[valid_idx], pp) + self.F_poly_conti(waves[valid_idx], pp[11:])
         Llam = waves[valid_idx] * self.flux2L(conti_flux, self.z)
         Llam[Llam <= 0] = 1e-1  # to make the log of these invalid values to be -1.
         L[valid_idx] = np.log10(Llam)
@@ -2175,7 +2158,7 @@ class QSOFit():
             # Use the continuum model to avoid the inf bug of EW when the 
             # spectrum range passed in is too short
             contiflux = self.PL(np.exp(xx), self.conti_params) + \
-                    self.F_poly_conti( np.exp(xx), self.conti_params[11:14]) + \
+                    self.F_poly_conti( np.exp(xx), self.conti_params[11:]) + \
                     self.Balmer_conti(np.exp(xx), self.conti_params[8:11])
 
             # Find the line peak location
@@ -2313,11 +2296,10 @@ class QSOFit():
         matplotlib.rc('ytick', labelsize=10)
 
         wave_eval = np.linspace(np.min(self.wave) - 200, np.max(self.wave) + 200, 5000)
-        # PBHFe2
         f_conti_model_eval = self.PL(wave_eval, pp) + \
-                            self.Fe_flux_mgii(wave_eval, pp[0:]) + \
+                            self.Fe_flux_mgii(wave_eval, pp[0:3]) + \
                             self.Fe_flux_balmer(wave_eval, pp[3:6]) + \
-                            self.F_poly_conti(wave_eval, pp[11:14]) + \
+                            self.F_poly_conti(wave_eval, pp[11:]) + \
                             self.Balmer_conti(wave_eval, pp[8:11])
 
         # Plot lines
@@ -2338,7 +2320,6 @@ class QSOFit():
             logV2 = False #Changing the axis scale -> Not Working
 
             # Prepare for the emission line subplots in the second row
-            # PBHJ0002
             fig = plt.figure(figsize=(15,8), layout='constrained')
             subfig = fig.subfigures(nrows=2, ncols=1)
             GS1 = subfig[0].add_gridspec(ncols=np.max([ncomp_fit,1]), nrows=1)
@@ -2720,38 +2701,30 @@ class QSOFit():
                 if AxesScale == 'lin':
                     ax.plot(self.wave, self.line_flux - self.f_line_model, 
                             'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'xlog':
                     #print('Should be plotting residual in semilogx on main plot (linefit+)') PBH
                     ax.semilogx(self.wave, self.line_flux - self.f_line_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'ylog':
                     ax.semilogy(self.wave, self.line_flux - self.f_line_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'log':
                     ax.loglog(self.wave, self.flux - self.f_conti_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
             else:
                 if AxesScale == 'lin':
                     ax.plot(self.wave, self.flux - self.f_conti_model, 
                             'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'xlog':
                     #print('Should be plotting residual in semilogx on main plot (linefit-)') PBH
                     ax.semilogx(self.wave, self.flux - self.f_conti_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'ylog':
                     ax.semilogy(self.wave, self.flux - self.f_conti_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
                 if AxesScale == 'log':
                     ax.loglog(self.wave, self.flux - self.f_conti_model, 
                                 'gray', label='resid', linestyle='dotted', lw=1, zorder=3)
-                    ax.axhline(0, color='k', zorder=0, lw=0.5)
 
         # Title
         if show_title == True:
@@ -2792,52 +2765,52 @@ class QSOFit():
 
         if self.BC == True: # Balmer Continuum, plot as yellow if fit
             if AxesScale == 'lin':
-                ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]) 
+                ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) 
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
             if AxesScale == 'xlog':
-                ax.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]) 
+                ax.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) 
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
             if AxesScale == 'ylog':
-                ax.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]) 
+                ax.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) 
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
             if AxesScale == 'log':
-                ax.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]) 
+                ax.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]) 
                         + self.Balmer_conti(wave_eval,pp[8:11]), 'y', lw=2, label='BC', zorder=8)
         
         #######################################################################
         # Plot powerlaw+polynomial as orange
         if AxesScale == 'lin':
-            ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            ax.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
             # if ncomp_fit == 1:
-            #     axz.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            #     axz.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
             #             color='orange', lw=2, label='conti', zorder=9)
         if AxesScale == 'xlog':
-            ax.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            ax.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
             # if ncomp_fit == 1:
-            #     axz.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            #     axz.semilogx(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
             #             color='orange', lw=2, label='conti', zorder=9)
         if AxesScale == 'ylog':
-            ax.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            ax.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
             # if ncomp_fit == 1:
-            #     axz.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            #     axz.semilogy(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
             #             color='orange', lw=2, label='conti', zorder=9)
         if AxesScale == 'log':
-            ax.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            ax.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
             # if ncomp_fit == 1:
-            #     axz.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            #     axz.loglog(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
             #             color='orange', lw=2, label='conti', zorder=9)
         if ncomp_fit == 1:
-            axz.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:14]), 
+            axz.plot(wave_eval, self.PL(wave_eval, pp) + self.F_poly_conti(wave_eval, pp[11:]), 
                     color='orange', lw=2, label='conti', zorder=9)
         
             
         #### Export ascii 
-        yContiWE = self.PL(wave_eval, pp)+self.F_poly_conti(wave_eval, pp[11:14])
-        yConti = self.PL(self.wave, pp)+self.F_poly_conti(self.wave, pp[11:14])
+        yContiWE = self.PL(wave_eval, pp)+self.F_poly_conti(wave_eval, pp[11:])
+        yConti = self.PL(self.wave, pp)+self.F_poly_conti(self.wave, pp[11:])
         if self.verbose:
             #print('')
             #print('len(self.wave_prereduced) = ',len(self.wave_prereduced))
@@ -2853,11 +2826,10 @@ class QSOFit():
         #Continuum model in observed flux: (Power Law) + (MgII FeII flux) + (Hβ/H𝛼 FeII flux) 
         #                                   + (Polynomial) + (Balmer continuum)
         # NOTE: This is originally using wave_eval and named f_conti_model_eval
-        # PBHFe2
         yContiModel = self.PL(self.wave, pp) + \
-                      self.Fe_flux_mgii(self.wave, pp[0:]) + \
+                      self.Fe_flux_mgii(self.wave, pp[0:3]) + \
                       self.Fe_flux_balmer(self.wave, pp[3:6]) + \
-                      self.F_poly_conti(self.wave, pp[11:14]) + \
+                      self.F_poly_conti(self.wave, pp[11:]) + \
                       self.Balmer_conti(self.wave, pp[8:11])
         #yContiLines = yContiModel + lines_total
         #ySpecDivContiModel = 0 # PBH
@@ -2890,8 +2862,7 @@ class QSOFit():
                         str(pp[3])+'  '+str(pp[4])+'  '+str(pp[5])+'  '+
                         str(pp[6])+'  '+str(pp[7])+'  '+str(pp[8])+'  '+
                         str(pp[9])+'  '+str(pp[10])+'  '+str(pp[11])+'  '+
-                        str(pp[12])+'  '+str(pp[13])+'  '+str(pp[14])+'  '+
-                        str(pp[15])+'  '+str(pp[16]))
+                        str(pp[12])+'  '+str(pp[13]))
         ParamFile.close()
         print('')
         print('Parameters used for continuum fitting saved to:')
@@ -3051,48 +3022,26 @@ class QSOFit():
         return y_smooth
 
     def Fe_flux_mgii(self, xval, pp):
-        "PBHFe2: J0002: adjust this to a 2-Gaussian kernel using Fe_Balmer params"
+        "PBH: J0002: adjust this to a 2-Gaussian kernel using Fe_Balmer params"
         "Fit the UV FeII component on the continuum from 1200 to 3500 A based on Boroson & Green 1992."
-        #print(pp)
         yval = np.zeros_like(xval)
         wave_Fe_mgii = 10 ** self.fe_uv[:, 0]
         flux_Fe_mgii = self.fe_uv[:, 1] * 1e15
         Fe_FWHM = pp[1]
         xval_new = xval * (1.0 + pp[2])
-        Fe_FWHM2 = pp[15]
-        Fe_shift2 = pp[16]
 
         ind = np.where((xval_new > 1200.) & (xval_new < 3500.), True, False)
         if np.sum(ind) > self.n_pix_min_conti:
-            # First Gaussian
             if Fe_FWHM < 900.0:
                 sig_conv = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
             else:
                 sig_conv = np.sqrt(Fe_FWHM**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
             # Get sigma in pixel space
             sig_pix = sig_conv / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
-            #khalfsz = np.round(4 * sig_pix + 1, 0)
-            khalfsz = np.round(4 * sig_pix + 2 * np.abs(Fe_shift2)/106.3 + 1, 0) # PBHFe2
+            khalfsz = np.round(4 * sig_pix + 1, 0)
             xx = np.arange(0, khalfsz * 2, 1) - khalfsz
             kernel = np.exp(-xx ** 2 / (2 * sig_pix ** 2))
-            
-            # If the convolution is with two Gaussians:
-            if Fe_FWHM2 > 0:
-                # Second Gaussian
-                if Fe_FWHM2 < 900.0:
-                    sig_conv2 = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
-                else:
-                    sig_conv2 = np.sqrt(Fe_FWHM2**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
-                # Get sigma in pixel space
-                sig_pix2 = sig_conv2 / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
-                # Get shift in pixel space
-                shift_pix = Fe_shift2 / 106.3  # 106.3 km/s is the dispersion for the BG92 FeII template
-                # Add 2nd Gaussian, scaled and shifted appropriately [zero when xx=shift_pix which is <0
-                kernel = kernel + pp[14]*np.exp(-(xx-shift_pix) ** 2 / (2 * sig_pix2 ** 2))
-
-            # Normalize the convolution kernel
             kernel = kernel / np.sum(kernel)
-            #print("kernel width in km/s = ", khalfsz*212.6)
 
             flux_Fe_conv = np.convolve(flux_Fe_mgii, kernel, 'same')
             tck = interpolate.splrep(wave_Fe_mgii, flux_Fe_conv)
@@ -3257,7 +3206,7 @@ class QSOFit():
             first three for the MgII template and the last three for the balmer.
             """
         if pp is None:
-            pp = self.conti_params # self.conti_params[:6] # PBHFe2
+            pp = self.conti_params[:6]
 
         Fe_flux_result = np.array([])
         Fe_flux_type = np.array([])
@@ -3297,7 +3246,6 @@ class QSOFit():
         mgii_range = np.array([1200., 3500.])
         upper = np.min([np.max(measure_range), np.max(self.wave)])
         lower = np.max([np.min(measure_range), np.min(self.wave)])
-        #print("Fe II lower, upper wavelengths = ", lower, upper) # PBHFe2
         if upper < np.max(measure_range) or lower > np.min(measure_range):
             if self.verbose:
                 print('Warning: The range given to calculate the flux of FeII'
@@ -3312,7 +3260,7 @@ class QSOFit():
                       f'Flux = -1 would be given!')
             return -1
 
-        if len(pp) == 17: # was 3:
+        if len(pp) == 3:
             if upper <= mgii_range[1] and lower >= mgii_range[0]:
                 yval = self.Fe_flux_mgii(xval, pp)
             elif upper <= balmer_range[1] and lower >= balmer_range[0]:
