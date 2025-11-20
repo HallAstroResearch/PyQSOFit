@@ -2330,7 +2330,7 @@ class QSOFit():
 
             # Number of line complexes actually fitted
             ncomp_fit = len(self.fur_result) // (
-                        mc_flag * 6)  # TODO: Not 5 here. But better not use 
+                        mc_flag * 8) # 6) # PBHJ0002 # TODO: Not 5 here. But better not use 
                                       # absolute value to fully fix this bug
             
             # LMS: Scale of x-axis and y-axis of main plot.
@@ -2338,14 +2338,18 @@ class QSOFit():
             logV2 = False #Changing the axis scale -> Not Working
 
             # Prepare for the emission line subplots in the second row
-            # PBHJ0002
-            fig = plt.figure(figsize=(15,8), layout='constrained')
+            fig = plt.figure(figsize=(20,8), layout='constrained') # PBHJ0002 unconstrain?
             subfig = fig.subfigures(nrows=2, ncols=1)
             GS1 = subfig[0].add_gridspec(ncols=np.max([ncomp_fit,1]), nrows=1)
             ax = subfig[0].add_subplot(GS1[0,:])
             if ncomp_fit > 1:
                 GS2 = subfig[1].add_gridspec(ncols=np.max([ncomp_fit,1]), nrows=1)
+                #GS2 = subfig[1].add_gridspec(ncols=np.max([ncomp_fit-2,1]), nrows=2)
+                #PBH: no ... GS2 becomes two dimensional then. See
+                # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.add_gridspec.html
                 axn = GS2.subplots()
+                #PBH: maybe: axa = GS2.subplots()
+                #axn = axa[0,0], axa[1,0], axa[2,0], axa[3,0], axa[0,1], axa[1,1], axa[2,1], axa[3,1]
             if ncomp_fit == 1:
                 GS2 = subfig[1].add_gridspec(ncols=3, nrows=1)
                 axz = subfig[1].add_subplot(GS2[0, :-1])
