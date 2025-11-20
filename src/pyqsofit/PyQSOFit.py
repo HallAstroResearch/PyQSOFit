@@ -1106,6 +1106,7 @@ class QSOFit():
 
         # Set initial parameters for continuum
         pp0 = np.array([c['initial'] for c in contilist])
+        #print(pp0)
 
         # It's usually a good idea to jitter the parameters a bit
         pp0 += np.abs(np.random.normal(0, self.epsilon_jitter, len(pp0)))
@@ -2330,7 +2331,7 @@ class QSOFit():
 
             # Number of line complexes actually fitted
             ncomp_fit = len(self.fur_result) // (
-                        mc_flag * 8) # 6) # PBHJ0002 # TODO: Not 5 here. But better not use 
+                        mc_flag * 7) # 6) # PBHJ0002 # TODO: Not 5 here. But better not use 
                                       # absolute value to fully fix this bug
             
             # LMS: Scale of x-axis and y-axis of main plot.
@@ -2348,7 +2349,7 @@ class QSOFit():
                 #PBH: no ... GS2 becomes two dimensional then. See
                 # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.add_gridspec.html
                 axn = GS2.subplots()
-                #PBH: maybe: axa = GS2.subplots()
+                #PBH: np.reshape? or maybe: axa = GS2.subplots()
                 #axn = axa[0,0], axa[1,0], axa[2,0], axa[3,0], axa[0,1], axa[1,1], axa[2,1], axa[3,1]
             if ncomp_fit == 1:
                 GS2 = subfig[1].add_gridspec(ncols=3, nrows=1)
