@@ -1309,6 +1309,7 @@ class QSOFit():
             print('wave_mask = ', self.wave_mask) # PBH
             print('reduced chi^2 = ', conti_fit.redchi) # PBH
             report_fit(conti_fit.params)
+        conti_fit_redchi_val = conti_fit.redchi
 
         """
         Uncertainty estimation
@@ -1374,6 +1375,7 @@ class QSOFit():
                 # Resample the spectrum using the measurement error
 
                 samples = np.zeros((self.nsamp, len(pp0)))
+                conti_fit_redchi_samples = np.zeros((self.nsamp)) # PBH
 
                 for k in range(self.nsamp):
                     flux_resampled = flux + np.random.randn(len(flux)) * err
@@ -1401,12 +1403,18 @@ class QSOFit():
                     params_dict = conti_fit.params.valuesdict()
                     params_mc = list(params_dict.values())
                     samples[k] = params_mc
+                    conti_fit_redchi_samples[k] = conti_fit.redchi # PBH
 
             else:
                 RuntimeError('MCMC and MC modes are both True')
 
+            # Reduced-chi^2 scatter (PBH)
+            conti_fit_redchi_err = get_err(conti_fit_redchi_samples, axis=0)
+            print('conti_fit_redchi_err = ', conti_fit_redchi_err, '\n')
+
             # Parameter error estimates
             params_err = get_err(samples, axis=0)
+
             """
             Calculate physical properties
             """
@@ -1447,13 +1455,15 @@ class QSOFit():
             par_err_names = [n + '_err' for n in par_names]
 
             self.conti_result = np.concatenate(([ra, dec, str(plateid), str(mjd), str(fiberid), self.z,
-                                                 self.SN_ratio_conti],
+                                                 #self.SN_ratio_conti],
+                                                 self.SN_ratio_conti, conti_fit_redchi_val, conti_fit_redchi_err], #PBH
                                                 list(chain.from_iterable(zip(params, params_err)))))
             self.conti_result_type = np.full(len(self.conti_result), 'float')
             self.conti_result_type[2:5] = 'int'
             self.conti_result_name = np.concatenate((['ra', 'dec', 'plateid', 'MJD', 
                                                       'fiberid', 'redshift',
-                                                      'SN_ratio_conti'],
+                                                      #'SN_ratio_conti'],
+                                                      'SN_ratio_conti', 'conti_fit_redchi_val', 'conti_fit_redchi_err'],
                                                      list(chain.from_iterable(zip(par_names, par_err_names)))))
 
             # For customized parameters
@@ -3009,7 +3019,11 @@ class QSOFit():
             axz.set_ylim(0, 3)
         
         # Plot continuum fit reduced chi^2
-        ax.text(0.90*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu=$' + str(np.round(float(self.conti_fit.redchi), 3)), fontsize=10)
+        if mc_flag == 1:
+            ax.text(0.90*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu=$' + str(np.round(float(self.conti_fit.redchi), 3)), fontsize=10)
+        elif mc_flag == 2:
+            ax.text(0.85*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu= $' + str(np.round(float(self.conti_result[7]), 3)) + ' $\pm$ ' + str(np.round(float(self.conti_result[8]), 3)), fontsize=10) # conti_fit_redchi_err
+
         ######################
         if AxesScale == 'lin' and logV2 == True:
             ax.set_xscale('log') # Set x-scale to logarithimic
@@ -3065,13 +3079,14 @@ class QSOFit():
         Fe_FWHM = pp[1]
         xval_new = xval * (1.0 + pp[2])
         Fe_FWHM2 = pp[15]
-        Fe_shift2 = pp[16]
+        Fe_shift2 = pp[16] # for J0002, must be <=0
 
         ind = np.where((xval_new > 1200.) & (xval_new < 3500.), True, False)
         if np.sum(ind) > self.n_pix_min_conti:
             # First Gaussian
-            if Fe_FWHM < 900.0:
-                sig_conv = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
+            if Fe_FWHM < 900.0002: # 900.0:
+                #sig_conv = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
+                sig_conv = np.sqrt(900.0002**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
             else:
                 sig_conv = np.sqrt(Fe_FWHM**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
             # Get sigma in pixel space
@@ -3083,16 +3098,17 @@ class QSOFit():
             
             # If the convolution is with two Gaussians:
             if Fe_FWHM2 > 0:
-                # Second Gaussian
-                if Fe_FWHM2 < 900.0:
-                    sig_conv2 = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
+                # Second Gaussian # Consider min 900.0002 instead (delta fn); 902.7 adds 69.77 km/s in quadrature
+                if Fe_FWHM2 <= 900.0002: # 900.0;
+                    #sig_conv2 = np.sqrt(910.0**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
+                    sig_conv2 = np.sqrt(900.0002**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))
                 else:
                     sig_conv2 = np.sqrt(Fe_FWHM2**2 - 900.0**2)/2. / np.sqrt(2.*np.log(2.))  # in km/s
                 # Get sigma in pixel space
                 sig_pix2 = sig_conv2 / 106.3  # 106.3 km/s is the dispersion for the UV FeII template
                 # Get shift in pixel space
                 shift_pix = Fe_shift2 / 106.3  # 106.3 km/s is the dispersion for the UV FeII template
-                # Add 2nd Gaussian, scaled and shifted appropriately [zero when xx=shift_pix which is <0
+                # Add 2nd Gaussian, scaled and shifted appropriately [zero when xx=shift_pix, and shift_pix is <=0]
                 kernel = kernel + pp[14]*np.exp(-(xx-shift_pix) ** 2 / (2 * sig_pix2 ** 2))
 
             # Normalize the convolution kernel
