@@ -478,11 +478,14 @@ class QSOFit():
             3*n Gaussian parameters for all lines in the format of [scale, 
             centerwave, sigma ], n is number of Gaussians for all complexes.
             ADD UNITS
+            scale is in flux units.
+            centerwave is in units of ln(wavelength in AA)
+            sigma is in units of v/c (approximately)
             
         gauss_result_all: array
             [nsamp, 3*n] Gaussian parameters for all lines in the format of 
             [scale, centerwave, sigma ], n is number of Gaussians for all 
-            complexes. ADD UNITS
+            complexes. ADD UNITS - SEE ABOVE
             
         .conti_result: array
             continuum parameters, including widely used continuum parameters 
@@ -570,6 +573,8 @@ class QSOFit():
         self.decomp_na_mask = decomp_na_mask
 
         self.read_out_params(os.path.join(self.path, self.param_file_name))
+
+        print ("Beginning fitting using parameters from " + self.param_file_name + "\n")
 
         # get the source name in plate-mjd-fiber, if no then None
         if name is None:
@@ -1564,7 +1569,7 @@ class QSOFit():
     def fit_lines(self, wave, line_flux, err, f):
         """Fit the emission lines with Gaussian profiles """
 
-        # Remove absorption lines in emission line region, pixels below continuum
+        # Remove absorption lines in emission line region, pixels below continuum # PBHTODO: make user choice
         ind_neg_line = ~np.where(((((wave > 2700.) & (wave < 2900.)) | ((wave > 1700.) & (wave < 1970.)) |
                                    ((wave > 1500.) & (wave < 1700.)) | ((wave > 1290.) & (wave < 1450.)) |
                                    ((wave > 1150.) & (wave < 1290.))) & (line_flux < -err)), True, False)
@@ -2207,6 +2212,7 @@ class QSOFit():
                 fwhm_left, fwhm_right = spline.roots().min(), spline.roots().max()
                 fwhm = abs(np.exp(fwhm_left) - np.exp(fwhm_right)) / compcenter * c
                 # PBH: above comes from dlam/lam = v/c thus v = (dlam/lam)*c
+                # PBHTODO: make exact
                 ## print('spline.roots=',spline.roots())
                 # print('fwhm=',fwhm, 'max=',np.max(yy_br))
                 # print('fwhm_left=',np.exp(fwhm_left), 'fwhm_right=',np.exp(fwhm_right), 'compcenter=',compcenter, 'c=',c)
@@ -2341,7 +2347,7 @@ class QSOFit():
 
             # Number of line complexes actually fitted
             ncomp_fit = len(self.fur_result) // (
-                        mc_flag * 7) # 6) # PBHJ0002 # TODO: Not 5 here. But better not use 
+                        mc_flag * 6) # 6) # PBHJ0002 # TODO: Not 5 here. But better not use 
                                       # absolute value to fully fix this bug
             
             # LMS: Scale of x-axis and y-axis of main plot.
@@ -3020,9 +3026,9 @@ class QSOFit():
         
         # Plot continuum fit reduced chi^2
         if mc_flag == 1:
-            ax.text(0.90*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu=$' + str(np.round(float(self.conti_fit.redchi), 3)), fontsize=10)
+            ax.text(0.90*xlims[1], 0.84*ylims[1], r'Cont. $\chi ^2_\nu=$' + str(np.round(float(self.conti_fit.redchi), 3)), fontsize=10)
         elif mc_flag == 2:
-            ax.text(0.85*xlims[1], 0.92*ylims[1], r'Cont. $\chi ^2_\nu= $' + str(np.round(float(self.conti_result[7]), 3)) + ' $\pm$ ' + str(np.round(float(self.conti_result[8]), 3)), fontsize=10) # conti_fit_redchi_err
+            ax.text(0.85*xlims[1], 0.84*ylims[1], r'Cont. $\chi ^2_\nu= $' + str(np.round(float(self.conti_result[7]), 3)) + ' $\pm$ ' + str(np.round(float(self.conti_result[8]), 3)), fontsize=10) # conti_fit_redchi_err
 
         ######################
         if AxesScale == 'lin' and logV2 == True:
@@ -3177,7 +3183,10 @@ class QSOFit():
         """
         xval2 = xval - x0
         # rescale pp for numerical precision
+        #yvals = [(pp[i] / 1e6) * xval2 ** (i + 1) for i in range(len(pp))]
         yvals = [(pp[i] / 1e6) * xval2 ** (i + 1) for i in range(len(pp))]
+        #print ('pp0,1,2', pp[0] / 1e6, pp[1]/1e6, pp[2]/1e6)
+        #print (np.sum(yvals, axis=0))
         return np.sum(yvals, axis=0)
 
     def flux2L(self, flux, z=None):
@@ -3208,8 +3217,10 @@ class QSOFit():
         
         pp: Paramaters [3]
             scale: line amplitude
-            wave: central ln wavelength in AA
-            sigma: width in km/s
+            wave: ln (central wavelength in AA)
+            sigma: ln width = ln (central wavelength + sigma in AA) - ln(central wavelength in AA)
+            approx: sigma,kms = sigma * c 
+            exact: sigma,kms = c * (ratio**2.-1)/(ratio**2.+1) where ratio=exp(wave+sigma)/exp(wave)
         """
 
         return pp[0] * np.exp(-(xval - pp[1]) ** 2 / (2 * pp[2] ** 2))
@@ -3230,8 +3241,10 @@ class QSOFit():
         
         pp: Paramaters array [ngauss, 3]
             scale: line amplitude
-            wave: central ln wavelength in AA
-            sigma: width in km/s
+            wave: ln(central wavelength in AA)
+            sigma: ln width = ln (central wavelength + sigma in AA) - ln(central wavelength in AA)
+            approx: sigma,kms = sigma * c 
+            exact: sigma,kms = c * (ratio**2.-1)/(ratio**2.+1) where ratio=exp(wave+sigma)/exp(wave)
         """
 
         return np.sum(pp[:,0] * np.exp(-(xval[:,np.newaxis] - pp[:,1])**2 /(2*pp[:,2]**2)), axis=1)
@@ -3248,8 +3261,10 @@ class QSOFit():
         
         pp: Paramaters [ngauss*3]
             scale: line amplitude
-            wave: central ln wavelength in AA
-            sigma: width in km/s
+            wave: ln(central wavelength in AA)
+            sigma: ln width = ln (central wavelength + sigma in AA) - ln(central wavelength in AA)
+            approx: sigma,kms = sigma * c 
+            exact: sigma,kms = c * (ratio**2.-1)/(ratio**2.+1) where ratio=exp(wave+sigma)/exp(wave)
         """
 
         # Reshape parameters array for vectorization
@@ -3333,7 +3348,7 @@ class QSOFit():
                       f'Flux = -1 would be given!')
             return -1
 
-        if len(pp) == 17: # was 3:
+        if len(pp) > 6: # == 17: # was 3:
             if upper <= mgii_range[1] and lower >= mgii_range[0]:
                 yval = self.Fe_flux_mgii(xval, pp)
             elif upper <= balmer_range[1] and lower >= balmer_range[0]:
