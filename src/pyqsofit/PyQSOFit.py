@@ -2368,7 +2368,7 @@ class QSOFit():
                 #PBH: np.reshape? or maybe: axa = GS2.subplots()
                 #axn = axa[0,0], axa[1,0], axa[2,0], axa[3,0], axa[0,1], axa[1,1], axa[2,1], axa[3,1]
             if ncomp_fit == 1:
-                GS2 = subfig[1].add_gridspec(ncols=3, nrows=1)
+                GS2 = subfig[1].add_gridspec(ncols=2, nrows=1) #(ncols=3, nrows=1)
                 axz = subfig[1].add_subplot(GS2[0, :-1])
                 axn = subfig[1].add_subplot(GS2[0, -1])
 
