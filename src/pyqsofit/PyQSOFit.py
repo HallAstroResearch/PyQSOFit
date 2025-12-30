@@ -812,6 +812,8 @@ class QSOFit():
     def _DeRedden(self, lam, flux, err, ra, dec, dustmap_path):
         """Correct the Galactic extinction"""
         m = sfdmap.SFDMap(dustmap_path)
+        print("Dereddening the spectrum for Galactic E(B-V) = ", m.ebv(ra, dec)) # PBH added
+        print("")
         zero_flux = np.where(flux == 0, True, False)
         flux[zero_flux] = 1e-10
         flux_unred = pyasl.unred(lam, flux, m.ebv(ra, dec))
