@@ -39,6 +39,30 @@ jupyter notebook example0242.ipynb
 
 The original example.ipynb notebook can still be found in the example folder, for reference.
 
+The output files are:
+
+
+Parameter file: <basename>_pp.dat 
+
+For description, search for "Parameters used for continuum fitting" in PyQSOFit.py.
+
+
+Spectrum file (wave, flux, error): <basename>_PQF-RAW.dat 
+
+These are the 'prereduced' values after removing bad pixels, dereddening, spectral trim, and smoothing. Probably should rename to "PQF-prered.dat".
+
+
+Fit and Normalized Spectra file: <basename>_PQF_ASCII.dat 
+
+The columns of PQF_ASCII.dat are:
+
+#        1           2            3                    4   5              6                  7                8       9
+# rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
+
+where Mod means Model, C means continuum and L means lines.
+
+The last two columns are new, and are the flux minus the continuum fit and the flux minus the (continuum+lines) fit. 
+
 
 ### Your own python notebook copy
 
