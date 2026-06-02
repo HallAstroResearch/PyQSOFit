@@ -45,13 +45,21 @@ The output files are:
 Parameter file: <basename>_pp.dat 
 
 Continuum fitting components described by 14 parameters (search for "Parameters used for continuum fitting" in PyQSOFit.py):
+
          pp[0]:     norm_factor for the MgII Fe_template
+
          pp[1]:     FWHM for the MgII Fe_template
+
          pp[2]:     small shift of wavelength for the MgII Fe template
+
          pp[3:5]:   same as pp[0:2] but for the Hbeta/Halpha Fe template
+
          pp[6]:     (PL_norm) norm_factor for continuum f_lambda = PL_norm * (lambda/3000.0)^{PL_slope}
+
          pp[7]:     (PL_slope) slope for the power-law continuum
+
          pp[8:10]:  norm, Te and Tau_e for the Balmer continuum below 3646 A
+
          pp[11:13]: polynomial for the continuum
 
 
@@ -64,7 +72,7 @@ Fit and Normalized Spectra file: <basename>_PQF_ASCII.dat
 
 The columns of PQF_ASCII.dat are:
 
-       1           2            3                    4   5              6                  7                8       9
+1        2       3           4        5        6          7          8        9
 rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
 
 where Mod means Model, C means continuum and L means lines.
