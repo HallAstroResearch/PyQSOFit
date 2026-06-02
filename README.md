@@ -72,8 +72,9 @@ Fit and Normalized Spectra file: <basename>_PQF_ASCII.dat
 
 The columns of PQF_ASCII.dat are:
 
-1        2       3           4        5        6          7          8        9
-rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
+  1	2	3	4	5	6	7	8	9
+
+  rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
 
 where Mod means Model, C means continuum and L means lines.
 
