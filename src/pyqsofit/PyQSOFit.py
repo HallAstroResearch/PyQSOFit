@@ -194,7 +194,7 @@ class QSOFit():
         self.install_path = os.path.dirname(os.path.abspath(__file__))
         self.output_path = path
 
-    def Fit(self, name=None, nsmooth=1, and_mask=False, or_mask=False, 
+    def Fit(self, name=None, label=None, nsmooth=1, and_mask=False, or_mask=False, 
             reject_badpix=True, deredden=True, wave_range=None, wave_mask=None, 
             decompose_host=True, host_prior=False, host_prior_scale=0.2, 
             host_line_mask=True, decomp_na_mask=False, qso_type='global', 
@@ -528,6 +528,7 @@ class QSOFit():
         # you know what you are doing
 
         self.name = name
+        self.label = label
         self.wave_range = wave_range
         self.wave_mask = wave_mask
         self.decompose_host = decompose_host
@@ -584,7 +585,7 @@ class QSOFit():
             else:
                 self.sdss_name = ''
         else:
-            self.sdss_name = name
+            self.sdss_name = label #name
 
         if self.plateid is None:
             self.plateid = 0
@@ -598,7 +599,7 @@ class QSOFit():
             if self.sdss_name == '':
                 save_fits_name = 'result'
             else:
-                save_fits_name = self.sdss_name
+                save_fits_name = self.name #sdss_name
         else:
             save_fits_name = save_fits_name
 
@@ -709,7 +710,7 @@ class QSOFit():
         """
         Plot the results
         """
-        if plot_fig == True:
+        if (plot_fig == True or save_fig == True):
             self.plot_fig(**kwargs_plot)
 
         return
@@ -816,6 +817,7 @@ class QSOFit():
         print("")
         zero_flux = np.where(flux == 0, True, False)
         flux[zero_flux] = 1e-10
+        # Uses Fitzpatrick (1999) parametrization: https://pyastronomy.readthedocs.io/en/latest/pyaslDoc/aslDoc/unredDoc.html
         flux_unred = pyasl.unred(lam, flux, m.ebv(ra, dec))
         err_unred = err * flux_unred / flux
         flux_unred[zero_flux] = 0
@@ -1051,10 +1053,10 @@ class QSOFit():
         else: # PBH: give the program a file with zero Fe II amplitude when no fitting is to be done
           self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uv_blank.txt')) # PBH
           #print(self.Fe_uv) # PBH for testing
-        if self.name=='J0242': # PBH: for J0242, model Fe II emission at >1560 Ang only
-          self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uvgt1560.txt'))
-          #print('fe_uvgt1560.txt') # PBH for testing
-        #self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
+        #if self.name=='J0242': # PBH: for J0242, model Fe II emission at >1560 Ang only
+        #  self.fe_uv = np.genfromtxt(os.path.join(self.install_path, 'fe_uvgt1560.txt'))
+        #  #print('fe_uvgt1560.txt') # PBH for testing
+        ##self.fe_op = np.genfromtxt(os.path.join(self.install_path, 'fe_optical.txt'))
         if self.Fe_op != '': # PBH: if fitting is to occur, get the filename
           self.fe_op = np.genfromtxt(os.path.join(self.install_path, self.Fe_op)) # PBH
         else: # PBH: give the program a file with zero Fe II amplitude when no fitting is to be done
@@ -1285,22 +1287,16 @@ class QSOFit():
 
             # ind_noBAL = ~np.where((flux[tmp_all] < tmp_conti - 3*err[tmp_all]) 
             #                       & (wave[tmp_all] < 3500), True, False)
-            # LMS: Use Lyman Correction of flux and errors
             ind_noBAL = ~np.where((FITflux < tmp_conti - 3*FITerr) 
                                   & (wave[tmp_all] < 3500), True, False)
 
             # Second fit of the continuum
-            # conti_fit = minimize(self._residuals, fit_params,
-            #                      args=(wave[tmp_all][ind_noBAL],
-            #                            self.Smooth(flux[tmp_all][ind_noBAL], 10),  # XXX Why smooth here?
-            #                            err[tmp_all][ind_noBAL], _conti_model),
-            #                      calc_covar=False, xtol=self.xtol_conti, ftol=self.ftol_conti)
-            # LMS: Use Lyman Correction of flux and errors
             #print(ind_noBAL) # PBHFe2
             #print(FITflux[ind_noBAL]) # PBHFe2
             conti_fit = minimize(self._residuals, fit_params,
                                  args=(wave[tmp_all][ind_noBAL],
-                                       self.Smooth(FITflux[ind_noBAL], 10),  # XXX Why smooth here?
+                                       #self.Smooth(FITflux[ind_noBAL], 10),  # XXX Why smooth in 2nd pass?
+                                       FITflux[ind_noBAL], # Remove smoothing for correct continuum fit chi^2 calculation
                                        FITerr[ind_noBAL], _conti_model),
                                  calc_covar=False, xtol=self.xtol_conti, ftol=self.ftol_conti)
             
@@ -1328,17 +1324,11 @@ class QSOFit():
                 MCMC sampling
                 """
                 # Sample with MCMC, using the initial minima
-                # conti_samples = minimize(self._residuals, params=conti_fit.params,
-                #                          args=(wave[tmp_all][ind_noBAL],
-                #                                self.Smooth(flux[tmp_all][ind_noBAL], 10),  # XXX Why smooth here?
-                #                                err[tmp_all][ind_noBAL], _conti_model),
-                #                          method='emcee', nan_policy='omit',
-                #                          burn=self.nburn, steps=self.nsamp, thin=self.nthin,
-                #                          **self.kwargs_conti_emcee, is_weighted=True)
-                # LMS: Use Lyman Correction of flux and errors
+                print("Beginnning MCMC sampling...")
                 conti_samples = minimize(self._residuals, params=conti_fit.params,
                                          args=(wave[tmp_all][ind_noBAL],
-                                               self.Smooth(FITflux[ind_noBAL], 10),  # XXX Why smooth here?
+                                               #self.Smooth(FITflux[ind_noBAL], 10),  # XXX Why smooth here?
+                                               FITflux[ind_noBAL], # Remove smoothing for correct continuum fit chi^2 calculation
                                                FITerr[ind_noBAL], _conti_model),
                                          method='emcee', nan_policy='omit',
                                          burn=self.nburn, steps=self.nsamp, thin=self.nthin,
@@ -1375,35 +1365,35 @@ class QSOFit():
                 df_samples = df_samples[par_names]
                 samples = df_samples.to_numpy()
 
+                # Calculate reduced chi^2 scatter for MCMC
+                log_prob = conti_samples.lnprob          # print(log_prob)
+                chi2_samples = -2.0 * log_prob.flatten() # print(chi2_samples)
+                ndof = round(conti_samples.chisqr / conti_samples.redchi) # print(ndof)
+                chi2_reduced_samples = chi2_samples / ndof # print(chi2_reduced_samples)
+                conti_fit_redchi_avg = np.mean(chi2_reduced_samples)
+                conti_fit_redchi_err = np.std(chi2_reduced_samples)
+                print('MCMC best-fit continuum fit reduced chi^2 = ', conti_fit_redchi_avg, ' +- ', conti_fit_redchi_err, '\n')
+
             elif (self.MCMC == False) and (self.MC == True):
                 """
                 MC resampling
                 """
                 # Resample the spectrum using the measurement error
-
+                print("Beginnning MC resampling...")
                 samples = np.zeros((self.nsamp, len(pp0)))
                 conti_fit_redchi_samples = np.zeros((self.nsamp)) # PBH
 
                 for k in range(self.nsamp):
                     flux_resampled = flux + np.random.randn(len(flux)) * err
-
-                    # conti_fit = minimize(self._residuals, conti_fit.params,
-                    #                      args=(wave[tmp_all][ind_noBAL],
-                    #                            self.Smooth(flux_resampled[tmp_all][ind_noBAL], 10),
-                    #                            # XXX Why smooth here?
-                    #                            err[tmp_all][ind_noBAL], _conti_model),
-                    #                      calc_covar=False)
-                    # LMS: Create Lyman Correction for resampled flux
                     FITflux_resampled = flux_resampled[tmp_all]
-                    
+                    # LMS: Use Lyman Correction of resampled flux
                     if self.name=='J2318':
                         for i in range(RLFcount):
                             FITflux_resampled[i] = FITflux_resampled[i]*1.112
-                    # LMS: Use Lyman Correction of resampled flux
                     conti_fit = minimize(self._residuals, conti_fit.params,
                                          args=(wave[tmp_all][ind_noBAL],
-                                               self.Smooth(FITflux_resampled[ind_noBAL], 10),
-                                               # XXX Why smooth here?
+                                               #self.Smooth(FITflux_resampled[ind_noBAL], 10), # XXX Why smooth here?
+                                               FITflux_resampled[ind_noBAL], # Remove smoothing for correct continuum fit chi^2 calculation
                                                FITerr[ind_noBAL], _conti_model),
                                          calc_covar=False)
                     
@@ -1412,12 +1402,13 @@ class QSOFit():
                     samples[k] = params_mc
                     conti_fit_redchi_samples[k] = conti_fit.redchi # PBH
 
+                # Reduced-chi^2 scatter (PBH)
+                conti_fit_redchi_avg = np.mean(conti_fit_redchi_samples, axis=0)
+                conti_fit_redchi_err = get_err(conti_fit_redchi_samples, axis=0)
+                print('MC best-fit continuum fit reduced chi^2 = ', conti_fit_redchi_avg, ' +- ', conti_fit_redchi_err, ' (MLE best-fit will be quoted with this error in MC output figure)\n')
+
             else:
                 RuntimeError('MCMC and MC modes are both True')
-
-            # Reduced-chi^2 scatter (PBH)
-            conti_fit_redchi_err = get_err(conti_fit_redchi_samples, axis=0)
-            print('conti_fit_redchi_err = ', conti_fit_redchi_err, '\n')
 
             # Parameter error estimates
             params_err = get_err(samples, axis=0)
@@ -2787,7 +2778,7 @@ class QSOFit():
                 dec1 = np.round(self.dec, 4)
                 z1 = np.round(float(self.z), 4)
                 #ax.set_title(f'(ra,dec) = ({ra1},{dec1})   {self.sdss_name}   z = {z1}', fontsize=20)
-                ax.set_title(f'{self.sdss_name}   epoch = {self.epoch}   MJD = {np.round(self.mjd)}   z = {z1}', fontsize=20)
+                ax.set_title(f'{self.name}   {self.sdss_name}   epoch = {self.epoch}   MJD = {np.round(self.mjd)}   z = {z1}', fontsize=20)
 
         # Host decomposition
         if self.decompose_host == True and self.decomposed == True:
@@ -2888,7 +2879,8 @@ class QSOFit():
         #### PBH: Record ASCII incl. continuum, continuum+lines, flux / or - both, etc, with columns:
         #        1       2           3        4        5          6          7        8          9
         # rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
-        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_ASCII.dat')
+        OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'_PQF_ASCII.dat')
+        #OutFile = os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF_ASCII.dat')
         # stack numpy.ndarrays and transpose prior to text file output
         OutFileArray = np.vstack(( self.wave, self.f_conti_model, \
         self.Manygauss(np.log(self.wave), self.gauss_result) + self.f_conti_model, \
@@ -2908,7 +2900,8 @@ class QSOFit():
         print('rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L') 
 
         #### Record Parameters used for continuum fitting
-        ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
+        ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'_pp.txt'),'w')
+        #ParamFile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt'),'w')
         ParamFile.write(str(pp[0])+'  '+str(pp[1])+'  '+str(pp[2])+'  '+
                         str(pp[3])+'  '+str(pp[4])+'  '+str(pp[5])+'  '+
                         str(pp[6])+'  '+str(pp[7])+'  '+str(pp[8])+'  '+
@@ -2918,7 +2911,8 @@ class QSOFit():
         ParamFile.close()
         print('')
         print('Parameters used for continuum fitting saved to:')
-        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
+        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'_pp.txt')
+        #print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_pp.txt')
        
         """
         Continuum components described by 14 parameters
@@ -2936,13 +2930,15 @@ class QSOFit():
         xRAW = self.wave_prereduced
         yRAW = self.flux_prereduced
         zRAW = self.err_prereduced
-        RAWfile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat'),'w')
+        RAWfile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'_PQF-RAW.dat'),'w')
+        #RAWfile = open(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat'),'w')
         RAWfile.write('# wave   flux   error\n')
         for i,wav in enumerate(xRAW):
             RAWfile.write(str(xRAW[i])+'  '+str(yRAW[i])+'  '+str(zRAW[i])+'\n')
         RAWfile.close()
         print('QSOFit-reduced spectrum (rest frame; optional badpix-fix, deredden, smooth, trim) saved to:')
-        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
+        print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'_PQF-RAW.dat')
+        #print(os.path.abspath(save_fig_path)+'/'+str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_PQF-RAW.dat')
         print('')
         
 
@@ -3060,9 +3056,12 @@ class QSOFit():
         # Save figure
         if self.save_fig == True:
             if self.verbose:
-                print('Saving figure as', os.path.join(save_fig_path, 'PyQSO_'+self.epoch+'_'+self.sdss_name+'.pdf'))
-            fig.savefig(os.path.join(save_fig_path, 'PyQSO_'+self.epoch+'_'+self.sdss_name+'.pdf'))
-            plt.close(fig)  # Close figure to save memory
+                print('Saving figure as', os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'.pdf'))
+                #print('Saving figure as', os.path.join(save_fig_path, 'PyQSO_'+self.epoch+'_'+self.sdss_name+'.pdf'))
+            #fig.savefig(os.path.join(save_fig_path, 'PyQSO_'+self.epoch+'_'+self.sdss_name+'.pdf'))
+            fig.savefig(os.path.join(save_fig_path, str(self.name)+'_'+str(round(self.mjd))+'_'+self.epoch+'_'+str(self.label)+'.pdf'))
+            if self.plot_fig == False:
+                plt.close(fig)  # Close figure to save memory
 
         self.fig = fig
         return 

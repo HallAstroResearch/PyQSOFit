@@ -42,17 +42,17 @@ The original example.ipynb notebook can still be found in the example folder, fo
 The output files are:
 
 
-Parameter file: <basename>_pp.dat 
+Parameter file: <name>_<mjd>_<epoch>_<label>_pp.dat 
 
 Continuum fitting components described by 14 parameters (search for "Parameters used for continuum fitting" in PyQSOFit.py):
 
-         pp[0]:     norm_factor for the MgII Fe_template
+         pp[0]:     norm_factor for the UV Fe_template
 
-         pp[1]:     FWHM for the MgII Fe_template
+         pp[1]:     FWHM for the UV Fe_template
 
-         pp[2]:     small shift of wavelength for the MgII Fe template
+         pp[2]:     small shift of wavelength for the UV Fe template
 
-         pp[3:5]:   same as pp[0:2] but for the Hbeta/Halpha Fe template
+         pp[3:5]:   same as pp[0:2] but for the optical Fe template
 
          pp[6]:     (PL_norm) norm_factor for continuum f_lambda = PL_norm * (lambda/3000.0)^{PL_slope}
 
@@ -62,17 +62,19 @@ Continuum fitting components described by 14 parameters (search for "Parameters 
 
          pp[11:13]: polynomial for the continuum
 
+         pp[14:16]: same as pp[0:2} but for the 2nd UV Fe component
 
-Spectrum file (wave, flux, error): <basename>_PQF-RAW.dat 
+
+Spectrum file (wave, flux, error): <name>_<mjd>_<epoch>_<label>_PQF-RAW.dat 
 
 These are the 'prereduced' values after removing bad pixels, dereddening, spectral trim, and smoothing. Probably should rename to "PQF-prered.dat".
 
 
-Fit and Normalized Spectra file: <basename>_PQF_ASCII.dat 
+Fit and Normalized Spectra file: <name>_<mjd>_<epoch>_<label>_PQF_ASCII.dat 
 
-The columns of PQF_ASCII.dat are:
+The columns of *PQF_ASCII.dat are:
 
-         1        2       3           4	        5       6          7          8	        9
+         1        2       3           4	       5        6          7          8	       9
 
          rest_wav Mod_Con Mod_C+Lines fl/Mod_C er/Mod_C fl/Mod_C+L er/Mod_C+L fl-Mod_C fl-Mod_C+L
 
@@ -111,13 +113,19 @@ Then, from the MyFits directory, run as usual:  jupyter notebook myexample.ipynb
 - Created example0242.ipynb
 
 202507:
-- Created option to use different Fe II template for J0242.
-- Created version 2.1.6.1
-- Enabled renaming of parameter file to something other than qsopar.fits
-- Changed name of FeII optical and UV templates to be input parameters
+- Created option to use different Fe II template.
+- Created version 2.1.6.1.
+- Enabled renaming of parameter file to something other than qsopar.fits.
+- Changed name of FeII optical and UV templates to be input parameters.
+
+202607:
+- Fixed bug of incorrect continuum fit reduced chi^2 calculation with rej_abs_conti=True.
+- Added option for label added to output filenames.  Use label = '' if no label desired.
+- Fixed MC and MCMC options to now both work and calculate chi^2 scatter.
 
 To Do:
 - investigate negative polynomials
+- remove hardcoded J2318-specific alterations (until then, don't use name="J2318")
 
 ### Cite
 
